@@ -29,7 +29,9 @@ struct CertificateTrustSheet: View {
                     }
                     .font(.callout)
                 } footer: {
-                    Text("Self-hosted control planes usually present a certificate from a private CA. Approve it only if the fingerprint below matches the one your server reports.")
+                    Text(
+                        "Self-hosted control planes usually present a certificate from a private CA. Approve it only if the fingerprint below matches the one your server reports."
+                    )
                 }
 
                 Section("SHA-256 Fingerprint") {
@@ -56,7 +58,9 @@ struct CertificateTrustSheet: View {
                 Section {
                     LabeledContent("Server", value: pending.address.displayName)
                 } footer: {
-                    Text("Approving pins this exact certificate for \(pending.address.displayName). If the server later presents a different one, you'll be asked again.")
+                    Text(
+                        "Approving pins this exact certificate for \(pending.address.displayName). If the server later presents a different one, you'll be asked again."
+                    )
                 }
             }
             .navigationTitle("Verify Certificate")

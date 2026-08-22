@@ -32,9 +32,11 @@ nonisolated struct KeychainStore: Sendable {
     }
 
     private func query(account: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: service,
-         kSecAttrAccount as String: account]
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
     }
 
     func data(forAccount account: String) throws -> Data? {

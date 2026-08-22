@@ -100,8 +100,9 @@ nonisolated struct ControlPlaneProbe: Sendable {
 
     /// `Retry-After` is either a delay in seconds or an HTTP-date.
     private static func retryAfter(from response: HTTPURLResponse) -> TimeInterval? {
-        guard let value = response.value(forHTTPHeaderField: "Retry-After")?
-            .trimmingCharacters(in: .whitespaces), !value.isEmpty
+        guard
+            let value = response.value(forHTTPHeaderField: "Retry-After")?
+                .trimmingCharacters(in: .whitespaces), !value.isEmpty
         else { return nil }
 
         if let seconds = TimeInterval(value) { return seconds }

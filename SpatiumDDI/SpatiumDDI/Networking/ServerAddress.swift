@@ -92,7 +92,8 @@ nonisolated extension ServerAddress {
         // `host` strips the brackets from an IPv6 literal; keep the bare form
         // and re-bracket on the way out so round-tripping stays stable.
         guard let host = components.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")),
-              !host.isEmpty else { throw .missingHost }
+            !host.isEmpty
+        else { throw .missingHost }
 
         if let port = components.port, !(1...65535).contains(port) { throw .invalidPort(port) }
 

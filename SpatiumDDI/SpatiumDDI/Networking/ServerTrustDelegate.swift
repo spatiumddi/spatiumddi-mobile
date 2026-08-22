@@ -40,7 +40,7 @@ final class ServerTrustDelegate: NSObject, URLSessionDelegate, Sendable {
         completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
         guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let trust = challenge.protectionSpace.serverTrust
+            let trust = challenge.protectionSpace.serverTrust
         else {
             completionHandler(.performDefaultHandling, nil)
             return
@@ -53,7 +53,8 @@ final class ServerTrustDelegate: NSObject, URLSessionDelegate, Sendable {
             return
         }
 
-        guard let presented = CertificateInfo(trust: trust, requestedHost: challenge.protectionSpace.host) else {
+        guard let presented = CertificateInfo(trust: trust, requestedHost: challenge.protectionSpace.host)
+        else {
             refused.withLock { $0 = nil }
             completionHandler(.cancelAuthenticationChallenge, nil)
             return

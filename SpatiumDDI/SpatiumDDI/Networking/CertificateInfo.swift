@@ -3,8 +3,8 @@
 //  SpatiumDDI
 //
 
-import Foundation
 import CryptoKit
+import Foundation
 import Security
 
 /// What the operator is shown when asked to vouch for a server certificate.
@@ -47,7 +47,7 @@ nonisolated struct CertificateInfo: Equatable, Hashable, Sendable {
     /// Returns `nil` only when the server presented no certificate at all.
     init?(trust: SecTrust, requestedHost: String) {
         guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
-              let leaf = chain.first
+            let leaf = chain.first
         else { return nil }
 
         let der = SecCertificateCopyData(leaf) as Data

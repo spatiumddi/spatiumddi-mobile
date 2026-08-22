@@ -44,22 +44,25 @@ final class ConnectionFlowUITests: XCTestCase {
 
         // The certificate is unverifiable, so the app must ask rather than proceed.
         let sheetTitle = app.staticTexts["Verify Certificate"]
-        XCTAssertTrue(sheetTitle.waitForExistence(timeout: 15),
-                      "Expected to be challenged over the self-signed certificate")
+        XCTAssertTrue(
+            sheetTitle.waitForExistence(timeout: 15),
+            "Expected to be challenged over the self-signed certificate")
         attach(app, "02-certificate-challenge")
 
         // The fingerprint on screen must be the real one, not a placeholder.
         if let expected = expectedFingerprint {
             let firstGroup = String(expected.prefix(11))  // "52:C1:AA:16"
-            XCTAssertTrue(app.staticTexts[firstGroup].exists,
-                          "Fingerprint \(firstGroup) not shown on the trust sheet")
+            XCTAssertTrue(
+                app.staticTexts[firstGroup].exists,
+                "Fingerprint \(firstGroup) not shown on the trust sheet")
         }
 
         app.buttons["Trust"].tap()
 
         let reachable = app.staticTexts["Reachable"]
-        XCTAssertTrue(reachable.waitForExistence(timeout: 15),
-                      "Connection did not succeed after the certificate was approved")
+        XCTAssertTrue(
+            reachable.waitForExistence(timeout: 15),
+            "Connection did not succeed after the certificate was approved")
         attach(app, "03-connected")
 
         // Leave no pin behind, so a re-run starts from the same place.
@@ -83,8 +86,9 @@ final class ConnectionFlowUITests: XCTestCase {
         let refused = app.staticTexts.containing(
             NSPredicate(format: "label CONTAINS[c] %@", "certificate wasn't trusted")
         ).firstMatch
-        XCTAssertTrue(refused.waitForExistence(timeout: 10),
-                      "Declining should refuse the connection, not quietly proceed")
+        XCTAssertTrue(
+            refused.waitForExistence(timeout: 10),
+            "Declining should refuse the connection, not quietly proceed")
         attach(app, "04-declined")
     }
 }

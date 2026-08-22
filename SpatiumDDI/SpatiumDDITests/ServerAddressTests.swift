@@ -3,8 +3,9 @@
 //  SpatiumDDITests
 //
 
-import Testing
 import Foundation
+import Testing
+
 @testable import SpatiumDDI
 
 struct ServerAddressTests {
@@ -78,11 +79,13 @@ struct ServerAddressTests {
         #expect(a.pinKey != b.pinKey)
     }
 
-    @Test("Bad input is rejected", arguments: [
-        "", "   ",
-        "ftp://ddi.internal.example",
-        "https://",
-    ])
+    @Test(
+        "Bad input is rejected",
+        arguments: [
+            "", "   ",
+            "ftp://ddi.internal.example",
+            "https://",
+        ])
     func rejectsBadInput(_ input: String) {
         #expect(throws: ServerAddress.ParseError.self) {
             try ServerAddress.parse(input)

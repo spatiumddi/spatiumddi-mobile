@@ -3,8 +3,9 @@
 //  SpatiumDDITests
 //
 
-import Testing
 import Foundation
+import Testing
+
 @testable import SpatiumDDI
 
 /// Exercises the trust decision against a real TLS handshake with a self-signed
