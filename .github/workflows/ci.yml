@@ -36,25 +36,8 @@ jobs:
       - name: Choose a simulator
         id: sim
         run: |
-          destination=$(xcrun simctl list devices available --json | python3 -c '
-import json, sys
-data = json.load(sys.stdin)["devices"]
-best = None
-for runtime, devices in data.items():
-    if "iOS" not in runtime:
-        continue
-    for device in devices:
-        if device.get("isAvailable") and "iPhone" in device["name"]:
-            version = runtime.rsplit(".", 1)[-1]
-            if best is None or version > best[0]:
-                best = (version, device["udid"], device["name"])
-if best is None:
-    sys.exit("no iPhone simulator available on this runner")
-sys.stderr.write("using %s (%s)\n" % (best[2], best[0]))
-print("platform=iOS Simulator,id=%s" % best[1])
-')
+          destination=$(./scripts/pick-simulator.py)
           echo "destination=$destination" >> "$GITHUB_OUTPUT"
-          echo "Using $destination"
 
       # Brings up the self-signed stub control plane, runs the suite against a
       # real TLS handshake, then tears it down. Without the stub the trust tests
