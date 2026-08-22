@@ -23,8 +23,8 @@ nonisolated enum Redaction {
     /// after it is not.
     static func redact(_ secret: String) -> String {
         guard !secret.isEmpty else { return "<empty>" }
-        if let range = secret.range(of: "sddi_"), range.lowerBound == secret.startIndex {
-            return "sddi_<redacted:\(secret.distance(from: range.upperBound, to: secret.endIndex))>"
+        if secret.hasPrefix("sddi_") {
+            return "sddi_<redacted:\(secret.count - 5)>"
         }
         return "<redacted:\(secret.count)>"
     }

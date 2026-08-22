@@ -110,7 +110,11 @@ stop() {
   # A pid file only tracks what this script started. An earlier run that was
   # interrupted leaves the port held, and the next start fails to bind while
   # still looking like it worked.
-  pkill -f "$WORK/server.py" 2>/dev/null || true
+  # Matched against the command line as launched — `cd "$WORK" && python3
+  # server.py <port> <mode>` — not against an absolute path that never appears
+  # in it. The port keeps this from reaching an unrelated server.py.
+  pkill -f "python3 server.py $HEALTHY_PORT" 2>/dev/null || true
+  pkill -f "python3 server.py $MAINTENANCE_PORT" 2>/dev/null || true
   pkill -f "dev-tls-proxy.py" 2>/dev/null || true
   sleep 1
   echo "stub stopped"

@@ -13,7 +13,10 @@ permissions:
 
 concurrency:
   group: security-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR pushes are worth cancelling. A push to main and the weekly
+  # schedule share a ref, so cancelling those would leave the default branch
+  # with no completed scan for the commit that is actually deployed.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   trivy:

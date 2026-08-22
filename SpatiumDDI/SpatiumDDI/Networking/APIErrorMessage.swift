@@ -23,7 +23,13 @@ nonisolated enum APIErrorMessage {
         return describeTransport(error)
     }
 
-    private static func describe(status: Int) -> String {
+    /// The message for a status the generated client reported directly.
+    ///
+    /// Not private: the generated `.ok` shorthand throws `RuntimeError`, not
+    /// `ClientError`, for any status the document doesn't declare — and this
+    /// document declares only 200 and 422. A 401, 403 or 503 therefore arrives
+    /// as `Output.undocumented(statusCode:)`, and only the call site can see it.
+    static func describe(status: Int) -> String {
         switch status {
         case 401:
             "Your session is no longer valid. Sign in again."
@@ -31,6 +37,8 @@ nonisolated enum APIErrorMessage {
             "You don't have permission to read this. Ask an administrator to review your role."
         case 404:
             "The server doesn't have this any more — it may have been deleted."
+        case 422:
+            "The server rejected that request as invalid."
         case 429:
             "The server is rate-limiting requests. Wait a moment and try again."
         case 503:

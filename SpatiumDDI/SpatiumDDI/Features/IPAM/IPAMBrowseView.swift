@@ -26,7 +26,7 @@ struct IPAMBrowseView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
                                 Text(space.name)
-                                if space.isDefault == true {
+                                if space.isDefault {
                                     Text("DEFAULT")
                                         .font(.caption2.weight(.semibold))
                                         .padding(.horizontal, 5).padding(.vertical, 1)
@@ -51,7 +51,18 @@ struct IPAMBrowseView: View {
     private func fetch() async {
         state = .loading
         do {
-            state = .loaded(try await session.client.listSpacesApiV1IpamSpacesGet().ok.body.json)
+            // Switched rather than `.ok`: the shorthand collapses every status
+            // the document doesn't declare — 401, 403, 503 — into an opaque
+            // runtime error, and non-negotiable #4 says those must be shown for
+            // what they are.
+            switch try await session.client.listSpacesApiV1IpamSpacesGet() {
+            case .ok(let ok):
+                state = .loaded(try ok.body.json)
+            case .unprocessableContent:
+                state = .failed(APIErrorMessage.describe(status: 422))
+            case .undocumented(let statusCode, _):
+                state = .failed(APIErrorMessage.describe(status: statusCode))
+            }
         } catch {
             state = .failed(APIErrorMessage.describe(error))
         }
@@ -98,8 +109,21 @@ struct IPAMBlocksView: View {
     private func fetch() async {
         state = .loading
         do {
-            let all = try await session.client.listBlocksApiV1IpamBlocksGet().ok.body.json
-            state = .loaded(all.filter { $0.spaceId == space.id })
+            // Filtered by the server: `/ipam/blocks` takes a `space_id`, and an
+            // estate's worth of blocks is not something to pull down and discard
+            // on a phone. The client-side filter stays as a backstop in case the
+            // server ever ignores the parameter.
+            let response = try await session.client.listBlocksApiV1IpamBlocksGet(
+                query: .init(spaceId: space.id)
+            )
+            switch response {
+            case .ok(let ok):
+                state = .loaded(try ok.body.json.filter { $0.spaceId == space.id })
+            case .unprocessableContent:
+                state = .failed(APIErrorMessage.describe(status: 422))
+            case .undocumented(let statusCode, _):
+                state = .failed(APIErrorMessage.describe(status: statusCode))
+            }
         } catch {
             state = .failed(APIErrorMessage.describe(error))
         }
@@ -148,8 +172,17 @@ struct IPAMSubnetsView: View {
     private func fetch() async {
         state = .loading
         do {
-            let all = try await session.client.listSubnetsApiV1IpamSubnetsGet().ok.body.json
-            state = .loaded(all.filter { $0.blockId == block.id })
+            let response = try await session.client.listSubnetsApiV1IpamSubnetsGet(
+                query: .init(blockId: block.id)
+            )
+            switch response {
+            case .ok(let ok):
+                state = .loaded(try ok.body.json.filter { $0.blockId == block.id })
+            case .unprocessableContent:
+                state = .failed(APIErrorMessage.describe(status: 422))
+            case .undocumented(let statusCode, _):
+                state = .failed(APIErrorMessage.describe(status: statusCode))
+            }
         } catch {
             state = .failed(APIErrorMessage.describe(error))
         }
@@ -185,8 +218,13 @@ struct IPAMAddressesView: View {
                                 Spacer()
                                 Text(address.status).font(.caption2).foregroundStyle(.secondary)
                             }
-                            if let hostname = address.hostname ?? address.fqdn, !hostname.isEmpty {
-                                Text(hostname).font(.caption).foregroundStyle(.secondary)
+                            // An unnamed address comes back as "" rather than
+                            // null, so `??` alone would hide an fqdn that is
+                            // present.
+                            if let name = [address.hostname, address.fqdn]
+                                .compactMap({ $0 }).first(where: { !$0.isEmpty })
+                            {
+                                Text(name).font(.caption).foregroundStyle(.secondary)
                             }
                             if let mac = address.macAddress, !mac.isEmpty {
                                 Text(mac).font(.caption2.monospaced()).foregroundStyle(.tertiary)
@@ -207,11 +245,16 @@ struct IPAMAddressesView: View {
     private func fetch() async {
         state = .loading
         do {
-            state = .loaded(
-                try await session.client
-                    .listAddressesApiV1IpamSubnetsSubnetIdAddressesGet(path: .init(subnetId: subnet.id))
-                    .ok.body.json
-            )
+            let response = try await session.client
+                .listAddressesApiV1IpamSubnetsSubnetIdAddressesGet(path: .init(subnetId: subnet.id))
+            switch response {
+            case .ok(let ok):
+                state = .loaded(try ok.body.json)
+            case .unprocessableContent:
+                state = .failed(APIErrorMessage.describe(status: 422))
+            case .undocumented(let statusCode, _):
+                state = .failed(APIErrorMessage.describe(status: statusCode))
+            }
         } catch {
             state = .failed(APIErrorMessage.describe(error))
         }

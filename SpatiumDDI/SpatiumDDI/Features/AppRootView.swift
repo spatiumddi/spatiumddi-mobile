@@ -41,12 +41,21 @@ struct AppRootView: View {
                 onUnlock: { Task { await flow.unlock() } },
                 onSignOut: { flow.signOut() }
             )
-            .task { await flow.unlock() }
+            // Keyed on the scene phase, not a bare `.task`: locking happens the
+            // moment the app stops being active, so a plain on-appear prompt
+            // fires while the app is backgrounded, is cancelled by the system,
+            // and never comes back. Re-running on the way to `.active` asks at
+            // the only moment biometry can actually succeed.
+            .task(id: scenePhase) {
+                guard scenePhase == .active else { return }
+                await flow.unlock()
+            }
 
         case .signedIn(let address):
             if let token = flow.token {
                 SignedInView(
-                    session: ControlPlaneSession(address: address, token: token),
+                    address: address,
+                    token: token,
                     onSignOut: { flow.signOut() },
                     onChangeServer: { flow.changeServer() }
                 )
@@ -66,24 +75,47 @@ struct AppRootView: View {
 /// production networking should not show a screen implying it knows something it
 /// does not.
 struct SignedInView: View {
-    let session: ControlPlaneSession
+    let address: ServerAddress
+    let token: String
     let onSignOut: () -> Void
     let onChangeServer: () -> Void
 
+    /// Built once and torn down explicitly.
+    ///
+    /// A `URLSession` with a delegate holds that delegate until it is
+    /// invalidated, so constructing the session inline in `body` — which SwiftUI
+    /// re-evaluates freely — leaks a session and a `ServerTrustDelegate` every
+    /// time it runs. State that owns a resource has to outlive a render.
+    @State private var session: ControlPlaneSession?
+
     var body: some View {
-        TabView {
-            Tab("IPAM", systemImage: "square.grid.3x3") {
-                NavigationStack { IPAMBrowseView(session: session) }
-            }
-            Tab("Server", systemImage: "gear") {
-                NavigationStack {
-                    ServerDetailView(
-                        address: session.address,
-                        onSignOut: onSignOut,
-                        onChangeServer: onChangeServer
-                    )
+        Group {
+            if let session {
+                TabView {
+                    Tab("IPAM", systemImage: "square.grid.3x3") {
+                        NavigationStack { IPAMBrowseView(session: session) }
+                    }
+                    Tab("Server", systemImage: "gear") {
+                        NavigationStack {
+                            ServerDetailView(
+                                address: session.address,
+                                onSignOut: onSignOut,
+                                onChangeServer: onChangeServer
+                            )
+                        }
+                    }
                 }
+            } else {
+                ProgressView()
             }
+        }
+        .task(id: token) {
+            session?.invalidate()
+            session = ControlPlaneSession(address: address, token: token)
+        }
+        .onDisappear {
+            session?.invalidate()
+            session = nil
         }
     }
 }

@@ -176,7 +176,11 @@ nonisolated struct TokenStore: Sendable {
             return token
         case errSecItemNotFound:
             throw StoreError.notFound
-        case errSecAuthFailed, errSecUserCanceled:
+        case errSecUserCanceled:
+            // Distinct from a failure: `AppFlowModel` shows no error for a
+            // cancellation, which is the right answer for a deliberate dismissal.
+            throw StoreError.cancelled
+        case errSecAuthFailed:
             throw StoreError.authenticationFailed
         // Raised when the item's `.biometryCurrentSet` policy no longer holds.
         case errSecInvalidData, errSecKeySizeNotAllowed:

@@ -8,12 +8,28 @@ import Testing
 
 @testable import SpatiumDDI
 
+/// Whether the stub control plane is up, and what certificate it is presenting.
+///
+/// Declared outside the suite: a `@Suite` trait cannot reference a static on the
+/// type it annotates without the macro expansion becoming circular.
+enum StubControlPlane {
+    static var isRunning: Bool {
+        ProcessInfo.processInfo.environment["SPATIUM_STUB_RUNNING"] == "1"
+    }
+
+    /// The fingerprint openssl reports for the stub's certificate, injected by
+    /// the test script so it can never drift from the cert actually in use.
+    static var expectedFingerprint: String? {
+        ProcessInfo.processInfo.environment["SPATIUM_EXPECTED_FINGERPRINT"]
+    }
+}
+
 /// Exercises the trust decision against a real TLS handshake with a self-signed
 /// certificate — the case every self-hosted install actually hits.
 ///
-/// Needs the stub control plane from `scripts/dev-control-plane.sh`. When it
-/// isn't running these skip rather than fail, so an ordinary test run in Xcode
-/// stays green without extra setup.
+/// Skipped wholesale when the stub from `scripts/dev-control-plane.sh` isn't
+/// running, so an ordinary test run in Xcode stays green without extra setup.
+@Suite(.enabled(if: StubControlPlane.isRunning))
 struct TrustFlowTests {
     /// Isolated Keychain service per run, so tests never touch real trust decisions.
     private func isolatedStore() -> TrustStore {
@@ -34,16 +50,8 @@ struct TrustFlowTests {
         ProcessInfo.processInfo.environment["SPATIUM_EXPECTED_FINGERPRINT"]
     }
 
-    private func requireStub() throws {
-        try #require(
-            ProcessInfo.processInfo.environment["SPATIUM_STUB_RUNNING"] == "1",
-            "Stub control plane not running — skipping."
-        )
-    }
-
     @Test("An unknown self-signed certificate is refused, not silently accepted")
     func untrustedCertificateIsRefused() async throws {
-        try requireStub()
         let outcome = await ControlPlaneProbe(trustStore: isolatedStore()).probe(healthyAddress)
 
         guard case .trustRequired(let presented) = outcome else {
@@ -56,8 +64,7 @@ struct TrustFlowTests {
 
     @Test("The fingerprint shown to the operator is the one openssl computes")
     func fingerprintMatchesOpenSSL() async throws {
-        try requireStub()
-        let expected = try #require(expectedFingerprint, "No expected fingerprint injected.")
+        let expected = try #require(StubControlPlane.expectedFingerprint, "No expected fingerprint injected.")
         let outcome = await ControlPlaneProbe(trustStore: isolatedStore()).probe(healthyAddress)
 
         guard case .trustRequired(let presented) = outcome else {
@@ -69,7 +76,6 @@ struct TrustFlowTests {
 
     @Test("Approving the certificate lets the next connection through")
     func pinnedCertificateConnects() async throws {
-        try requireStub()
         let store = isolatedStore()
         let probe = ControlPlaneProbe(trustStore: store)
 
@@ -89,7 +95,6 @@ struct TrustFlowTests {
 
     @Test("A pin for a different certificate does not open the door")
     func wrongPinStillRefuses() async throws {
-        try requireStub()
         let store = isolatedStore()
 
         // A pin exists for this origin, but it isn't this server's certificate —
@@ -107,7 +112,6 @@ struct TrustFlowTests {
 
     @Test("Forgetting a certificate makes the next connection ask again")
     func forgottenPinReprompts() async throws {
-        try requireStub()
         let store = isolatedStore()
         let probe = ControlPlaneProbe(trustStore: store)
 
@@ -127,7 +131,6 @@ struct TrustFlowTests {
 
     @Test("A change window is reported as maintenance, with its Retry-After")
     func maintenanceIsSurfacedNotRetried() async throws {
-        try requireStub()
         let store = isolatedStore()
         let probe = ControlPlaneProbe(trustStore: store)
 
@@ -143,6 +146,13 @@ struct TrustFlowTests {
         try store.removePin(for: maintenanceAddress)
     }
 
+}
+
+/// Independent of the stub: nothing is listening either way.
+struct ConnectionFailureTests {
+    private func isolatedStore() -> TrustStore {
+        TrustStore(keychain: KeychainStore(service: "io.spatiumddi.tests.\(UUID().uuidString)"))
+    }
     @Test("An unreachable port fails as a connection error, not a trust prompt")
     func closedPortIsAConnectionError() async throws {
         let address = ServerAddress(host: "127.0.0.1", port: 9)

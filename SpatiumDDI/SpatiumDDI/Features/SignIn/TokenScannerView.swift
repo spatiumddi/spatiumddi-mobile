@@ -63,8 +63,13 @@ struct TokenScannerView: View {
             CameraPreview { scanned in
                 do {
                     onScanned(try EnrolmentPayload.parse(scanned))
+                    return true
                 } catch {
+                    // Keep scanning. Pointing the camera at the wrong sticker is
+                    // the ordinary way this goes wrong, and a scanner that dies
+                    // on the first bad code looks like a broken camera.
                     scanError = error.localizedDescription
+                    return false
                 }
             }
             .ignoresSafeArea(edges: .bottom)
@@ -116,8 +121,11 @@ struct TokenScannerView: View {
 }
 
 /// Thin `AVCaptureSession` wrapper that emits decoded QR strings.
+///
+/// The handler returns whether the payload was accepted; a rejected one leaves
+/// the session running so the operator can try another code.
 private struct CameraPreview: UIViewControllerRepresentable {
-    let onCode: (String) -> Void
+    let onCode: (String) -> Bool
 
     func makeUIViewController(context: Context) -> ScannerViewController {
         let controller = ScannerViewController()
@@ -138,12 +146,14 @@ private struct SessionBox: @unchecked Sendable {
 }
 
 final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
-    var onCode: ((String) -> Void)?
+    /// Returns true when the payload was accepted and scanning should stop.
+    var onCode: ((String) -> Bool)?
 
     private let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "io.spatiumddi.scanner.session")
     private var preview: AVCaptureVideoPreviewLayer?
-    /// One payload per presentation; a QR code re-reads many times a second.
+    /// Latched while a code is being handled; a QR code re-reads many times a
+    /// second, and only an accepted payload should end the scan.
     private var hasReported = false
 
     override func viewDidLoad() {
@@ -203,8 +213,15 @@ final class ScannerViewController: UIViewController, AVCaptureMetadataOutputObje
         else { return }
 
         hasReported = true
+        guard onCode?(value) == true else {
+            // Not a payload we could use. Re-arm after a beat so the same code
+            // in frame doesn't re-report dozens of times a second.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.hasReported = false
+            }
+            return
+        }
         let box = SessionBox(session: session)
         sessionQueue.async { box.session.stopRunning() }
-        onCode?(value)
     }
 }

@@ -70,7 +70,11 @@ nonisolated struct EnrolmentPayload: Equatable, Sendable {
 
         var address: ServerAddress?
         if let serverHost = value("host") {
-            var spec = serverHost
+            // An IPv6 literal has to be bracketed before a port is appended, or
+            // "fd00::1" + ":8443" parses as neither.
+            var spec =
+                serverHost.contains(":") && !serverHost.hasPrefix("[")
+                ? "[\(serverHost)]" : serverHost
             if let port = value("port") { spec += ":\(port)" }
             do {
                 address = try ServerAddress.parse(spec)
