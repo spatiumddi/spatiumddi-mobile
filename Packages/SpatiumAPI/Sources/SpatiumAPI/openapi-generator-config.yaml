@@ -1,0 +1,38 @@
+# Generated API client configuration.
+#
+# PROVISIONAL: openapi.json here is a development snapshot pulled from a running
+# control plane, whose info.version reads "latest" rather than a CalVer. CLAUDE.md
+# requires a shipped client be generated from a pinned release asset — see
+# spatiumddi/spatiumddi#905, which adds that asset. Re-pin before release.
+generate:
+  - types
+  - client
+accessModifier: public
+namingStrategy: idiomatic
+filter:
+  # Phase 1 is read-mostly. Generating all 841 paths would produce an enormous
+  # client for a handful of screens; this is the surface #884 Phase 1 names.
+  paths:
+    - /api/v1/version
+    - /api/v1/auth/me
+    - /api/v1/auth/me/permissions
+    - /api/v1/dashboards/network/summary
+    - /api/v1/dashboards/security/summary
+    - /api/v1/search
+    - /api/v1/search/types
+    - /api/v1/alerts/events
+    - /api/v1/ipam/spaces
+    - /api/v1/ipam/spaces/{space_id}
+    - /api/v1/ipam/blocks
+    - /api/v1/ipam/blocks/{block_id}
+    - /api/v1/ipam/subnets
+    - /api/v1/ipam/subnets/{subnet_id}
+    - /api/v1/ipam/subnets/{subnet_id}/addresses
+    - /api/v1/ipam/addresses/{address_id}
+    - /api/v1/dns/groups
+    - /api/v1/dns/groups/{group_id}/zones
+    - /api/v1/dns/groups/{group_id}/zones/{zone_id}
+    - /api/v1/dns/groups/{group_id}/zones/{zone_id}/records
+    - /api/v1/dhcp/servers
+    - /api/v1/dhcp/servers/{server_id}/leases
+    - /api/v1/dhcp/scopes/{scope_id}
