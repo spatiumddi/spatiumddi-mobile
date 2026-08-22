@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# Stub SpatiumDDI control plane for local development.
+#
+# Serves /health/platform over TLS with a self-signed certificate, which is the
+# situation every real self-hosted install puts the app in. Two instances: one
+# healthy, one permanently in a change window.
+#
+#   ./scripts/dev-control-plane.sh start   # bring both up
+#   ./scripts/dev-control-plane.sh stop
+#   ./scripts/dev-control-plane.sh test    # start, run the test suite, stop
+#
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORK="$ROOT/.dev-control-plane"
+HEALTHY_PORT=8443
+MAINTENANCE_PORT=8444
+
+ensure_certificate() {
+  mkdir -p "$WORK"
+  if [[ -f "$WORK/cert.pem" && -f "$WORK/key.pem" ]]; then return; fi
+  echo "Generating a self-signed certificate for the stub..."
+  openssl req -x509 -newkey rsa:2048 -keyout "$WORK/key.pem" -out "$WORK/cert.pem" \
+    -days 30 -nodes -subj "/CN=ddi.lab.test" \
+    -addext "subjectAltName=DNS:ddi.lab.test,DNS:localhost,IP:127.0.0.1" 2>/dev/null
+}
+
+fingerprint() {
+  openssl x509 -in "$WORK/cert.pem" -noout -fingerprint -sha256 | sed 's/.*=//'
+}
+
+write_server() {
+  cat > "$WORK/server.py" <<'PY'
+import http.server, ssl, sys, json
+
+PORT = int(sys.argv[1])
+MODE = sys.argv[2] if len(sys.argv) > 2 else "healthy"
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    def do_GET(self):
+        if self.path != "/health/platform":
+            self.send_error(404); return
+        if MODE == "maintenance":
+            body = json.dumps({"maintenance_mode": True}).encode()
+            self.send_response(503)
+            self.send_header("Retry-After", "1800")
+        else:
+            body = json.dumps({"demo_mode": False, "maintenance_mode": False}).encode()
+            self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+    def log_message(self, fmt, *args):
+        sys.stderr.write("REQ %s\n" % (fmt % args)); sys.stderr.flush()
+
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ctx.load_cert_chain("cert.pem", "key.pem")
+srv = http.server.HTTPServer(("0.0.0.0", PORT), Handler)
+srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+sys.stderr.write("listening on %d mode=%s\n" % (PORT, MODE)); sys.stderr.flush()
+srv.serve_forever()
+PY
+}
+
+start() {
+  ensure_certificate
+  write_server
+  stop >/dev/null 2>&1 || true
+  ( cd "$WORK" && nohup python3 server.py "$HEALTHY_PORT" healthy > healthy.log 2>&1 & echo $! > healthy.pid )
+  ( cd "$WORK" && nohup python3 server.py "$MAINTENANCE_PORT" maintenance > maintenance.log 2>&1 & echo $! > maintenance.pid )
+  sleep 2
+  echo "healthy      https://localhost:$HEALTHY_PORT/health/platform"
+  echo "maintenance  https://localhost:$MAINTENANCE_PORT/health/platform"
+  echo "fingerprint  $(fingerprint)"
+}
+
+stop() {
+  for name in healthy maintenance; do
+    if [[ -f "$WORK/$name.pid" ]]; then
+      kill "$(cat "$WORK/$name.pid")" 2>/dev/null || true
+      rm -f "$WORK/$name.pid"
+    fi
+  done
+  echo "stub stopped"
+}
+
+run_tests() {
+  start
+  local status=0
+  TEST_RUNNER_SPATIUM_STUB_RUNNING=1 \
+  TEST_RUNNER_SPATIUM_EXPECTED_FINGERPRINT="$(fingerprint)" \
+  xcodebuild -project "$ROOT/SpatiumDDI/SpatiumDDI.xcodeproj" -scheme SpatiumDDI \
+    -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test || status=$?
+  stop
+  return $status
+}
+
+case "${1:-start}" in
+  start) start ;;
+  stop)  stop ;;
+  test)  run_tests ;;
+  *) echo "usage: $0 {start|stop|test}" >&2; exit 2 ;;
+esac

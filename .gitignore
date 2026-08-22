@@ -60,3 +60,13 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+## Xcode build output
+build/
+DerivedData/
+
+## macOS
+.DS_Store
+
+## Local stub control plane (self-signed cert + keys)
+.dev-control-plane/

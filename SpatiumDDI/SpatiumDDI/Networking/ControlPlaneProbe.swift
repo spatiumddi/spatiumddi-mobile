@@ -1,0 +1,134 @@
+//
+//  ControlPlaneProbe.swift
+//  SpatiumDDI
+//
+
+import Foundation
+
+/// What came back from trying to reach a control plane.
+nonisolated enum ProbeOutcome: Sendable, Equatable {
+    /// TLS completed and a SpatiumDDI health endpoint answered.
+    case reachable(status: Int)
+    /// A change window is in progress. Never retried automatically — the
+    /// operator is told, and decides.
+    case maintenance(retryAfter: TimeInterval?)
+    /// The server's certificate isn't trusted and hasn't been approved here.
+    case trustRequired(CertificateInfo)
+    case failed(ConnectionError)
+}
+
+nonisolated enum ConnectionError: Error, Sendable, Equatable, LocalizedError {
+    case cannotFindHost(String)
+    case cannotConnect(String)
+    case timedOut
+    case insecureTransportBlocked(String)
+    case notAControlPlane(status: Int)
+    case transport(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .cannotFindHost(let host):
+            "Can't find \(host). Check the name, and that this device is on a network that can resolve it."
+        case .cannotConnect(let host):
+            "Nothing answered at \(host). Check the port, and that the control plane is running."
+        case .timedOut:
+            "The server didn't respond in time."
+        case .insecureTransportBlocked(let host):
+            "iOS blocked an unencrypted connection to \(host). Plain HTTP is only permitted to hosts on a local network."
+        case .notAControlPlane(let status):
+            "That address answered with HTTP \(status), which isn't a SpatiumDDI health response. Check you have the right host and port."
+        case .transport(let detail):
+            detail
+        }
+    }
+}
+
+/// Establishes whether an address is a reachable SpatiumDDI control plane.
+///
+/// Reads status codes only and never decodes a response body — the app has no
+/// hand-written models by policy (CLAUDE.md non-negotiable #1), and none of what
+/// this needs to know lives in the payload anyway. When `openapi.json` ships, the
+/// version handshake layers onto this transport rather than replacing it.
+nonisolated struct ControlPlaneProbe: Sendable {
+    let trustStore: TrustStore
+
+    init(trustStore: TrustStore = TrustStore()) {
+        self.trustStore = trustStore
+    }
+
+    func probe(_ address: ServerAddress) async -> ProbeOutcome {
+        let delegate = ServerTrustDelegate(address: address, trustStore: trustStore)
+
+        // Ephemeral: no on-disk cache, cookie jar or credential store. Non-negotiable
+        // #3 — a stale-but-plausible view of production networking is worse than none.
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        configuration.timeoutIntervalForRequest = 15
+        configuration.waitsForConnectivity = false
+
+        let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+
+        var request = URLRequest(url: address.healthURL)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        do {
+            let (_, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return .failed(.transport("The server sent a response the app couldn't read."))
+            }
+
+            switch http.statusCode {
+            case 200...299:
+                return .reachable(status: http.statusCode)
+            case 503:
+                return .maintenance(retryAfter: Self.retryAfter(from: http))
+            default:
+                return .failed(.notAControlPlane(status: http.statusCode))
+            }
+        } catch {
+            // A refused handshake surfaces here as a cancellation. The delegate
+            // recorded what was presented, and that is the real story.
+            if let presented = delegate.refusedCertificate {
+                return .trustRequired(presented)
+            }
+            return .failed(Self.classify(error, address: address))
+        }
+    }
+
+    /// `Retry-After` is either a delay in seconds or an HTTP-date.
+    private static func retryAfter(from response: HTTPURLResponse) -> TimeInterval? {
+        guard let value = response.value(forHTTPHeaderField: "Retry-After")?
+            .trimmingCharacters(in: .whitespaces), !value.isEmpty
+        else { return nil }
+
+        if let seconds = TimeInterval(value) { return seconds }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        guard let date = formatter.date(from: value) else { return nil }
+        return max(0, date.timeIntervalSinceNow)
+    }
+
+    private static func classify(_ error: Error, address: ServerAddress) -> ConnectionError {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else { return .transport(error.localizedDescription) }
+
+        switch nsError.code {
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
+            return .cannotFindHost(address.displayName)
+        case NSURLErrorCannotConnectToHost, NSURLErrorNetworkConnectionLost:
+            return .cannotConnect(address.displayName)
+        case NSURLErrorTimedOut:
+            return .timedOut
+        case NSURLErrorAppTransportSecurityRequiresSecureConnection:
+            return .insecureTransportBlocked(address.displayName)
+        default:
+            return .transport(error.localizedDescription)
+        }
+    }
+}

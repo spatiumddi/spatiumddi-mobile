@@ -1,0 +1,23 @@
+SpatiumDDI Mobile
+Copyright 2026 SpatiumDDI Contributors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+── Assets derived from the SpatiumDDI platform ────────────────────────────
+The brand mark and wordmark in
+SpatiumDDI/SpatiumDDI/Assets.xcassets/ (BrandMark, BrandWordmark, and the
+AppIcon renderings derived from the same geometry) originate in the
+SpatiumDDI platform repository, and are used under the same Apache 2.0
+license:
+
+  https://github.com/spatiumddi/spatiumddi
+  docs/assets/logo.svg, docs/assets/logo-icon.svg
+
+── Third-party components ─────────────────────────────────────────────────
+This application bundles no third-party code. It is built against Apple's
+SDKs (SwiftUI, Foundation, Security, CryptoKit), which are licensed by
+Apple and are not redistributed by this repository.
+
+The SpatiumDDI platform's own third-party components are catalogued in that
+repository's NOTICE file. They are the control plane's dependencies, not
+this client's, and are not restated here.
