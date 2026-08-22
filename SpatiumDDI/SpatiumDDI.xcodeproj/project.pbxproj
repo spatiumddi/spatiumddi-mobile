@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA1000000000000000000003 /* SpatiumAPI in Frameworks */ = {isa = PBXBuildFile; productRef = AA1000000000000000000002 /* SpatiumAPI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2E2EEC54303A101700EEAB04 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA1000000000000000000003 /* SpatiumAPI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = SpatiumDDI;
 			packageProductDependencies = (
+				AA1000000000000000000002 /* SpatiumAPI */,
 			);
 			productName = SpatiumDDI;
 			productReference = 2E2EEC46303A101600EEAB04 /* SpatiumDDI.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 2E2EEC3D303A101600EEAB04;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA1000000000000000000001 /* XCLocalSwiftPackageReference "../Packages/SpatiumAPI" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2E2EEC47303A101600EEAB04 /* Products */;
 			projectDirPath = "";
@@ -399,15 +408,15 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = SpatiumDDI;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "SpatiumDDI uses the camera to scan an enrolment code from your control plane.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "SpatiumDDI uses Face ID to unlock the API token stored for this device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "SpatiumDDI needs local network access to reach a control plane hosted on your network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -436,15 +445,15 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = SpatiumDDI;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "SpatiumDDI uses the camera to scan an enrolment code from your control plane.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "SpatiumDDI uses Face ID to unlock the API token stored for this device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "SpatiumDDI needs local network access to reach a control plane hosted on your network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -582,6 +591,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AA1000000000000000000001 /* XCLocalSwiftPackageReference "../Packages/SpatiumAPI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Packages/SpatiumAPI;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA1000000000000000000002 /* SpatiumAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SpatiumAPI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2E2EEC3E303A101600EEAB04 /* Project object */;
 }

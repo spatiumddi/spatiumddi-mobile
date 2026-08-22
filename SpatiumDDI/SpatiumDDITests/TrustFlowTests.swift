@@ -21,11 +21,11 @@ struct TrustFlowTests {
     }
 
     private var healthyAddress: ServerAddress {
-        ServerAddress(scheme: .https, host: "localhost", port: 8443)
+        ServerAddress(host: "localhost", port: 8443)
     }
 
     private var maintenanceAddress: ServerAddress {
-        ServerAddress(scheme: .https, host: "localhost", port: 8444)
+        ServerAddress(host: "localhost", port: 8444)
     }
 
     /// The fingerprint openssl reports for the stub's certificate, injected by
@@ -145,7 +145,7 @@ struct TrustFlowTests {
 
     @Test("An unreachable port fails as a connection error, not a trust prompt")
     func closedPortIsAConnectionError() async throws {
-        let address = ServerAddress(scheme: .https, host: "127.0.0.1", port: 9)
+        let address = ServerAddress(host: "127.0.0.1", port: 9)
         let outcome = await ControlPlaneProbe(trustStore: isolatedStore()).probe(address)
 
         guard case .failed = outcome else {

@@ -28,15 +28,7 @@ struct ServerSetupView: View {
                 } header: {
                     Text("Server Address")
                 } footer: {
-                    if model.warnsAboutPlaintext {
-                        Label(
-                            "http:// sends your credentials in the clear. iOS also blocks it except on a local network.",
-                            systemImage: "exclamationmark.triangle.fill"
-                        )
-                        .foregroundStyle(.orange)
-                    } else {
-                        Text("A host name or IP address. Add a port if your control plane doesn't use 443.")
-                    }
+                    Text("A host name or IP address. Add a port if your control plane doesn't use 443.")
                 }
 
                 Section {

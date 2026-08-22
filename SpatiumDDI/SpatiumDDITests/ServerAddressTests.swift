@@ -12,7 +12,6 @@ struct ServerAddressTests {
     @Test("A bare host is assumed to be HTTPS")
     func bareHostDefaultsToHTTPS() throws {
         let address = try ServerAddress.parse("ddi.internal.example")
-        #expect(address.scheme == .https)
         #expect(address.host == "ddi.internal.example")
         #expect(address.port == nil)
         #expect(address.origin.absoluteString == "https://ddi.internal.example")
@@ -49,16 +48,11 @@ struct ServerAddressTests {
         #expect(address.pinKey == "https://[fd00::1]:8443")
     }
 
-    @Test("HTTP is honoured when spelled out, and flagged")
-    func explicitHTTP() throws {
-        let address = try ServerAddress.parse("http://ddi.lab.internal")
-        #expect(address.scheme == .http)
-        #expect(address.isInsecureTransport)
-    }
-
-    @Test("A downgrade is never inferred from a bare host")
-    func noImplicitDowngrade() throws {
-        #expect(try ServerAddress.parse("ddi.lab.internal").isInsecureTransport == false)
+    @Test("HTTP is refused rather than silently downgraded")
+    func refusesHTTP() {
+        #expect(throws: ServerAddress.ParseError.unsupportedScheme("http")) {
+            try ServerAddress.parse("http://ddi.lab.internal")
+        }
     }
 
     @Test("A pasted deep link reduces to its origin")
@@ -84,6 +78,7 @@ struct ServerAddressTests {
         arguments: [
             "", "   ",
             "ftp://ddi.internal.example",
+            "http://ddi.internal.example",
             "https://",
         ])
     func rejectsBadInput(_ input: String) {

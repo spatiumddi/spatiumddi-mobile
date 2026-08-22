@@ -8,22 +8,19 @@ import Foundation
 /// A SpatiumDDI control plane the operator has pointed the app at.
 ///
 /// Deployments are rarely a tidy public hostname. This models what the field
-/// actually looks like: private names, non-standard ports, bare IP literals
-/// (v4 and v6), and HTTP-only lab installs an operator knowingly chooses.
+/// actually looks like: private names, non-standard ports, and bare IP literals
+/// (v4 and v6).
+///
+/// HTTPS only. A bearer token in cleartext is a credential handed to anyone on
+/// the path, and an operator cannot tell from the app that it happened. Labs
+/// that only speak HTTP are reached by terminating TLS in front of them — see
+/// `scripts/dev-control-plane.sh proxy`.
 nonisolated struct ServerAddress: Equatable, Hashable, Sendable, Codable {
-    enum Scheme: String, Sendable, Codable {
-        case https, http
-        var defaultPort: Int { self == .https ? 443 : 80 }
-    }
+    static let defaultPort = 443
 
-    let scheme: Scheme
     let host: String
-    /// `nil` means "the scheme's default port".
+    /// `nil` means 443.
     let port: Int?
-
-    /// An HTTP install ships credentials in the clear. Legal, but the operator
-    /// has to be told plainly rather than have it slip past them.
-    var isInsecureTransport: Bool { scheme == .http }
 
     /// IPv6 literals must be bracketed inside a URL's authority component.
     private var hostForURL: String {
@@ -31,8 +28,8 @@ nonisolated struct ServerAddress: Equatable, Hashable, Sendable, Codable {
     }
 
     var origin: URL {
-        var string = "\(scheme.rawValue)://\(hostForURL)"
-        if let port, port != scheme.defaultPort { string += ":\(port)" }
+        var string = "https://\(hostForURL)"
+        if let port, port != Self.defaultPort { string += ":\(port)" }
         // Every component is validated at parse time, so this cannot fail.
         return URL(string: string)!
     }
@@ -46,12 +43,12 @@ nonisolated struct ServerAddress: Equatable, Hashable, Sendable, Codable {
 
     /// Identity a pinned certificate is remembered against. Port matters: two
     /// services on one host are not the same peer.
-    var pinKey: String { "\(scheme.rawValue)://\(hostForURL):\(port ?? scheme.defaultPort)" }
+    var pinKey: String { "https://\(hostForURL):\(port ?? Self.defaultPort)" }
 
     /// Human-facing form, echoed back so the operator can confirm what was parsed.
     var displayName: String {
         var name = hostForURL
-        if let port, port != scheme.defaultPort { name += ":\(port)" }
+        if let port, port != Self.defaultPort { name += ":\(port)" }
         return name
     }
 }
@@ -68,7 +65,7 @@ nonisolated extension ServerAddress {
             case .empty:
                 "Enter the address of your SpatiumDDI server."
             case .unsupportedScheme(let scheme):
-                "\(scheme):// isn't supported. Use https:// or http://."
+                "\(scheme):// isn't supported. SpatiumDDI connections must use https://."
             case .missingHost:
                 "That address doesn't contain a host name."
             case .invalidPort(let port):
@@ -77,8 +74,8 @@ nonisolated extension ServerAddress {
         }
     }
 
-    /// Parses whatever the operator typed. A bare host is assumed to be HTTPS —
-    /// downgrading to HTTP is never inferred, only accepted when spelled out.
+    /// Parses whatever the operator typed. HTTPS is assumed, and anything else
+    /// is refused rather than quietly downgraded.
     static func parse(_ raw: String) throws(ParseError) -> ServerAddress {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw .empty }
@@ -86,12 +83,13 @@ nonisolated extension ServerAddress {
         let qualified = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
         guard let components = URLComponents(string: qualified) else { throw .missingHost }
 
-        let rawScheme = (components.scheme ?? "").lowercased()
-        guard let scheme = Scheme(rawValue: rawScheme) else { throw .unsupportedScheme(rawScheme) }
+        let scheme = (components.scheme ?? "").lowercased()
+        guard scheme == "https" else { throw .unsupportedScheme(scheme) }
 
         // `host` strips the brackets from an IPv6 literal; keep the bare form
         // and re-bracket on the way out so round-tripping stays stable.
-        guard let host = components.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")),
+        guard
+            let host = components.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")),
             !host.isEmpty
         else { throw .missingHost }
 
@@ -99,6 +97,6 @@ nonisolated extension ServerAddress {
 
         // A pasted deep link ("https://host/ui/dashboard") carries a path we
         // don't want; the origin is the only part that identifies the server.
-        return ServerAddress(scheme: scheme, host: host, port: components.port)
+        return ServerAddress(host: host, port: components.port)
     }
 }

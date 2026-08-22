@@ -36,7 +36,6 @@ nonisolated enum ConnectionError: Error, Sendable, Equatable, LocalizedError {
     case cannotFindHost(String)
     case cannotConnect(String)
     case timedOut
-    case insecureTransportBlocked(String)
     case notAControlPlane(status: Int)
     case transport(String)
 
@@ -48,8 +47,6 @@ nonisolated enum ConnectionError: Error, Sendable, Equatable, LocalizedError {
             "Nothing answered at \(host). Check the port, and that the control plane is running."
         case .timedOut:
             "The server didn't respond in time."
-        case .insecureTransportBlocked(let host):
-            "iOS blocked an unencrypted connection to \(host). Plain HTTP is only permitted to hosts on a local network."
         case .notAControlPlane(let status):
             "That address answered with HTTP \(status), which isn't a SpatiumDDI health response. Check you have the right host and port."
         case .transport(let detail):
@@ -176,8 +173,6 @@ nonisolated struct ControlPlaneProbe: Sendable {
             return .cannotConnect(address.displayName)
         case NSURLErrorTimedOut:
             return .timedOut
-        case NSURLErrorAppTransportSecurityRequiresSecureConnection:
-            return .insecureTransportBlocked(address.displayName)
         default:
             return .transport(error.localizedDescription)
         }

@@ -30,7 +30,7 @@ struct EnrolmentPayloadTests {
             "spatiumddi://enrol?host=ddi.internal.example&port=8443&token=sddi_abc&fingerprint=\(sampleHex)"
         let payload = try EnrolmentPayload.parse(uri)
 
-        #expect(payload.address == ServerAddress(scheme: .https, host: "ddi.internal.example", port: 8443))
+        #expect(payload.address == ServerAddress(host: "ddi.internal.example", port: 8443))
         #expect(payload.token == "sddi_abc")
         #expect(payload.certificateFingerprint == EnrolmentPayload.fingerprintData(from: sampleHex))
         #expect(payload.certificateFingerprint?.count == 32)
@@ -57,14 +57,13 @@ struct EnrolmentPayloadTests {
         #expect(payload.token == nil)
     }
 
-    @Test("An explicit http scheme survives, and is not inferred")
-    func explicitScheme() throws {
+    @Test("A code cannot downgrade the connection to HTTP")
+    func codeCannotDowngrade() throws {
+        // `scheme` is no longer honoured, so a code carrying one is simply
+        // parsed as the HTTPS server it names.
         let payload = try EnrolmentPayload.parse(
             "spatiumddi://enrol?host=lab.internal&scheme=http&token=sddi_x")
-        #expect(payload.address?.isInsecureTransport == true)
-        #expect(
-            try EnrolmentPayload.parse("spatiumddi://enrol?host=lab.internal&token=sddi_x")
-                .address?.isInsecureTransport == false)
+        #expect(payload.address == ServerAddress(host: "lab.internal", port: nil))
     }
 
     @Test(
@@ -101,10 +100,4 @@ struct EnrolmentPayloadTests {
         }
     }
 
-    @Test("An unusable server in a code is reported, not ignored")
-    func rejectsBadServer() {
-        #expect(throws: EnrolmentPayload.ParseError.self) {
-            try EnrolmentPayload.parse("spatiumddi://enrol?host=lab&scheme=ftp&token=sddi_a")
-        }
-    }
 }

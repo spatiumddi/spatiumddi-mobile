@@ -87,7 +87,7 @@ struct TokenStoreAvailabilityTests {
             return
         }
         let store = TokenStore(service: "io.spatiumddi.tests.\(UUID().uuidString)")
-        let address = ServerAddress(scheme: .https, host: "ddi.internal.example", port: 8443)
+        let address = ServerAddress(host: "ddi.internal.example", port: 8443)
 
         #expect(throws: TokenStore.StoreError.self) {
             try store.save("sddi_should_not_persist", for: address)

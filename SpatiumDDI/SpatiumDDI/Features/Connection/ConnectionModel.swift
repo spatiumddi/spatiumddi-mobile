@@ -38,12 +38,6 @@ final class ConnectionModel {
 
     var isBusy: Bool { state == .connecting }
 
-    /// True once the typed address parses as HTTP, so the warning appears while
-    /// they type rather than after a failed attempt.
-    var warnsAboutPlaintext: Bool {
-        (try? ServerAddress.parse(addressInput))?.isInsecureTransport ?? false
-    }
-
     func connect() async {
         let address: ServerAddress
         do {

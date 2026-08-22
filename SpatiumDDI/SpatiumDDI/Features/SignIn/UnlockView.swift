@@ -59,7 +59,7 @@ struct UnlockView: View {
 
 #Preview {
     UnlockView(
-        address: ServerAddress(scheme: .https, host: "ddi.internal.example", port: 8443),
+        address: ServerAddress(host: "ddi.internal.example", port: 8443),
         biometryDescription: "Face ID",
         message: nil,
         onUnlock: {}, onSignOut: {}

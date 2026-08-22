@@ -44,51 +44,70 @@ struct AppRootView: View {
             .task { await flow.unlock() }
 
         case .signedIn(let address):
-            SignedInView(
-                address: address,
-                onSignOut: { flow.signOut() },
-                onChangeServer: { flow.changeServer() }
-            )
+            if let token = flow.token {
+                SignedInView(
+                    session: ControlPlaneSession(address: address, token: token),
+                    onSignOut: { flow.signOut() },
+                    onChangeServer: { flow.changeServer() }
+                )
+            } else {
+                // Only reachable if the token was dropped between the state
+                // change and this render; locking is the honest response.
+                ProgressView().task { flow.lockForBackground() }
+            }
         }
     }
 }
 
-/// Placeholder for the Phase 1 surfaces.
+/// The signed-in shell.
 ///
-/// Deliberately not a mocked-up dashboard: every read view — KPIs, IPAM, DNS,
-/// DHCP, alerts — decodes response payloads, which waits on the generated
-/// client. Showing invented numbers for an app that manages production
-/// networking would be worse than showing none.
+/// Only the surfaces that are actually built appear here. Tabs for DNS, DHCP and
+/// alerts arrive with their views rather than as empty placeholders — an app for
+/// production networking should not show a screen implying it knows something it
+/// does not.
 struct SignedInView: View {
+    let session: ControlPlaneSession
+    let onSignOut: () -> Void
+    let onChangeServer: () -> Void
+
+    var body: some View {
+        TabView {
+            Tab("IPAM", systemImage: "square.grid.3x3") {
+                NavigationStack { IPAMBrowseView(session: session) }
+            }
+            Tab("Server", systemImage: "gear") {
+                NavigationStack {
+                    ServerDetailView(
+                        address: session.address,
+                        onSignOut: onSignOut,
+                        onChangeServer: onChangeServer
+                    )
+                }
+            }
+        }
+    }
+}
+
+/// Connection and session controls.
+struct ServerDetailView: View {
     let address: ServerAddress
     let onSignOut: () -> Void
     let onChangeServer: () -> Void
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section("Connection") {
-                    LabeledContent("Server", value: address.displayName)
-                    LabeledContent("Session", value: "Authenticated")
-                }
-
-                Section {
-                    Label(
-                        "Dashboard, IPAM, DNS, DHCP and alerts arrive with the generated API client.",
-                        systemImage: "clock.badge.checkmark"
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                } header: {
-                    Text("Next")
-                }
-
-                Section {
-                    Button("Change Server", action: onChangeServer)
-                    Button("Sign Out", role: .destructive, action: onSignOut)
-                }
+        List {
+            Section("Connection") {
+                LabeledContent("Server", value: address.displayName)
+                LabeledContent("Session", value: "Authenticated")
             }
-            .navigationTitle("SpatiumDDI")
+
+            Section {
+                Button("Change Server", action: onChangeServer)
+                Button("Sign Out", role: .destructive, action: onSignOut)
+            } footer: {
+                Text("Signing out deletes this device's stored token for \(address.displayName).")
+            }
         }
+        .navigationTitle("Server")
     }
 }

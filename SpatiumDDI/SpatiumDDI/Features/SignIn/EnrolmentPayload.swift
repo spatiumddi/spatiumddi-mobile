@@ -71,7 +71,6 @@ nonisolated struct EnrolmentPayload: Equatable, Sendable {
         var address: ServerAddress?
         if let serverHost = value("host") {
             var spec = serverHost
-            if let scheme = value("scheme") { spec = "\(scheme)://\(spec)" }
             if let port = value("port") { spec += ":\(port)" }
             do {
                 address = try ServerAddress.parse(spec)

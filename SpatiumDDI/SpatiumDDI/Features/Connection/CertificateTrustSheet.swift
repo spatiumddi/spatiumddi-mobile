@@ -79,7 +79,7 @@ struct CertificateTrustSheet: View {
 }
 
 #Preview {
-    let address = ServerAddress(scheme: .https, host: "ddi.internal.example", port: 8443)
+    let address = ServerAddress(host: "ddi.internal.example", port: 8443)
     let certificate = CertificateInfo(
         fingerprint: Data((0..<32).map { UInt8($0 &* 7 &+ 11) }),
         subjectSummary: "ddi.internal.example",
