@@ -400,6 +400,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = SpatiumDDI;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "SpatiumDDI uses the camera to scan an enrolment code from your control plane.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "SpatiumDDI uses Face ID to unlock the API token stored for this device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "SpatiumDDI needs local network access to reach a control plane hosted on your network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -436,6 +437,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = SpatiumDDI;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "SpatiumDDI uses the camera to scan an enrolment code from your control plane.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "SpatiumDDI uses Face ID to unlock the API token stored for this device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "SpatiumDDI needs local network access to reach a control plane hosted on your network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

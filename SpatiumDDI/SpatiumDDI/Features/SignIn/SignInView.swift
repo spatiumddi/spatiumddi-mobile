@@ -23,6 +23,19 @@ struct SignInView: View {
                         .textContentType(.password)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+
+                    Button {
+                        model.isScanning = true
+                    } label: {
+                        Label("Scan Enrolment Code", systemImage: "qrcode.viewfinder")
+                    }
+                    .disabled(model.isBusy)
+
+                    if let notice = model.scanNotice {
+                        Label(notice, systemImage: "checkmark.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 } header: {
                     Text("API Token")
                 } footer: {
@@ -78,6 +91,12 @@ struct SignInView: View {
                 }
             }
             .navigationTitle("Sign In")
+            .sheet(isPresented: $model.isScanning) {
+                TokenScannerView(
+                    onScanned: { model.apply($0) },
+                    onCancel: { model.isScanning = false }
+                )
+            }
         }
     }
 }

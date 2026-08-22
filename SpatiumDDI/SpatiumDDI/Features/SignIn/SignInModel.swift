@@ -23,22 +23,66 @@ final class SignInModel {
 
     var tokenInput: String = ""
     private(set) var state: State = .idle
+    /// Presented after a scan, so the operator sees what the code contained.
+    var scanNotice: String?
+    var isScanning = false
 
     let address: ServerAddress
     private let probe: ControlPlaneProbe
     private let tokens: TokenStore
+    private let trust: TrustStore
     private let onSignedIn: (String) -> Void
 
     init(
         address: ServerAddress,
         probe: ControlPlaneProbe = ControlPlaneProbe(),
         tokens: TokenStore = TokenStore(),
+        trust: TrustStore = TrustStore(),
         onSignedIn: @escaping (String) -> Void
     ) {
         self.address = address
         self.probe = probe
         self.tokens = tokens
+        self.trust = trust
         self.onSignedIn = onSignedIn
+    }
+
+    /// Takes what a QR code claimed, and acts on none of it without saying so.
+    ///
+    /// A code is whatever was printed on the thing the camera pointed at. It can
+    /// fill in a token; it cannot silently move the app to another server, and a
+    /// certificate fingerprint that disagrees with the one already pinned is
+    /// reported rather than quietly reconciled.
+    func apply(_ payload: EnrolmentPayload) {
+        isScanning = false
+
+        if let scanned = payload.address, scanned != address {
+            state = .failed(
+                "That code is for \(scanned.displayName), not \(address.displayName). "
+                    + "Go back and change server if you meant to connect there."
+            )
+            return
+        }
+
+        if let scanned = payload.certificateFingerprint,
+            let pinned = trust.pinnedFingerprint(for: address),
+            scanned != pinned
+        {
+            state = .failed(
+                "That code carries a different certificate fingerprint than the one you approved "
+                    + "for \(address.displayName). Do not continue until you know why."
+            )
+            return
+        }
+
+        guard let token = payload.token else {
+            state = .failed("That code didn't contain a token.")
+            return
+        }
+
+        tokenInput = token
+        state = .idle
+        scanNotice = "Token filled in from the scanned code. Review it, then sign in."
     }
 
     var isBusy: Bool { state == .validating || state == .storing }

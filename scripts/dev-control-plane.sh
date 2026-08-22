@@ -69,8 +69,10 @@ start() {
   ensure_certificate
   write_server
   stop >/dev/null 2>&1 || true
-  ( cd "$WORK" && nohup python3 server.py "$HEALTHY_PORT" healthy > healthy.log 2>&1 & echo $! > healthy.pid )
-  ( cd "$WORK" && nohup python3 server.py "$MAINTENANCE_PORT" maintenance > maintenance.log 2>&1 & echo $! > maintenance.pid )
+  # The braces matter: without them the `cd` applies only to the backgrounded
+  # job and the pid file lands in the repo root instead of the work directory.
+  ( cd "$WORK" && { nohup python3 server.py "$HEALTHY_PORT" healthy > healthy.log 2>&1 & echo $! > healthy.pid; } )
+  ( cd "$WORK" && { nohup python3 server.py "$MAINTENANCE_PORT" maintenance > maintenance.log 2>&1 & echo $! > maintenance.pid; } )
   sleep 2
   echo "healthy      https://localhost:$HEALTHY_PORT/health/platform"
   echo "maintenance  https://localhost:$MAINTENANCE_PORT/health/platform"
