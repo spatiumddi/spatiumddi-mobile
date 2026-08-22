@@ -19,7 +19,12 @@ final class ControlPlaneSession {
 
     private let urlSession: URLSession
 
-    init(address: ServerAddress, token: String, trustStore: TrustStore = TrustStore()) {
+    init(
+        address: ServerAddress,
+        token: String,
+        trustStore: TrustStore = TrustStore(),
+        onUnauthorized: (@Sendable () -> Void)? = nil
+    ) {
         self.address = address
 
         let delegate = ServerTrustDelegate(address: address, trustStore: trustStore)
@@ -39,7 +44,8 @@ final class ControlPlaneSession {
         self.client = SpatiumClientFactory.makeClient(
             serverURL: address.origin,
             session: urlSession,
-            token: token
+            token: token,
+            onUnauthorized: onUnauthorized
         )
     }
 

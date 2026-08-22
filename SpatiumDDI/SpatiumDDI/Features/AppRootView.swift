@@ -57,7 +57,8 @@ struct AppRootView: View {
                     address: address,
                     token: token,
                     onSignOut: { flow.signOut() },
-                    onChangeServer: { flow.changeServer() }
+                    onChangeServer: { flow.changeServer() },
+                    onSessionRejected: { flow.sessionRejected() }
                 )
             } else {
                 // Only reachable if the token was dropped between the state
@@ -79,6 +80,8 @@ struct SignedInView: View {
     let token: String
     let onSignOut: () -> Void
     let onChangeServer: () -> Void
+    /// Called when the server rejects the credential this session was built with.
+    let onSessionRejected: () -> Void
 
     /// Built once and torn down explicitly.
     ///
@@ -111,7 +114,10 @@ struct SignedInView: View {
         }
         .task(id: token) {
             session?.invalidate()
-            session = ControlPlaneSession(address: address, token: token)
+            session = ControlPlaneSession(address: address, token: token) {
+                // The middleware runs on whatever queue the response arrived on.
+                Task { @MainActor in onSessionRejected() }
+            }
         }
         .onDisappear {
             session?.invalidate()

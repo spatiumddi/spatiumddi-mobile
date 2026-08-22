@@ -92,6 +92,18 @@ final class AppFlowModel {
         stage = .locked(address, message: nil)
     }
 
+    /// The server rejected the stored credential.
+    ///
+    /// Discards it rather than keeping it: a token the server has revoked will
+    /// fail identically on every future unlock, and leaving it in place means
+    /// the operator authenticates their way into a dead session forever.
+    func sessionRejected() {
+        guard case .signedIn(let address) = stage else { return }
+        token = nil
+        try? tokens.delete(for: address)
+        stage = .signIn(address)
+    }
+
     func signOut() {
         let address = currentAddress
         token = nil
