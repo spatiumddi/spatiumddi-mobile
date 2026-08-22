@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   trivy:
     name: Trivy
@@ -24,7 +28,7 @@ jobs:
       # Secrets and misconfiguration are what matter here today. Dependency
       # scanning becomes meaningful once Package.resolved exists.
       - name: Scan repository
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -44,7 +48,7 @@ jobs:
       # Secrets are the one class worth breaking the build over: a leaked token
       # in a public repo is compromised the moment it is pushed.
       - name: Fail on exposed secrets
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
