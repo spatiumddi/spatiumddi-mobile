@@ -129,6 +129,7 @@ run_tests() {
   TEST_RUNNER_SPATIUM_EXPECTED_FINGERPRINT="$(fingerprint)" \
   xcodebuild -project "$ROOT/SpatiumDDI/SpatiumDDI.xcodeproj" -scheme SpatiumDDI \
     -destination "$destination" \
+    -skipPackagePluginValidation \
     ${SPATIUM_TEST_EXTRA_ARGS:-} test || status=$?
   stop
   return $status
