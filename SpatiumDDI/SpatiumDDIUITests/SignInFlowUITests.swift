@@ -59,4 +59,46 @@ final class SignInFlowUITests: XCTestCase {
         enterAddress(app, "localhost:8443")
         forgetTrustedCertificate(app)
     }
+
+    /// The token field masks by default; pasting a credential blind is exactly
+    /// when an operator needs to check it.
+    func testTokenCanBeRevealedAndHiddenAgain() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        connectExpectingChallenge(app, "localhost:8443")
+        app.buttons["Trust"].tap()
+
+        let proceed = app.buttons["Continue"]
+        XCTAssertTrue(proceed.waitForExistence(timeout: 15))
+        proceed.tap()
+        XCTAssertTrue(app.navigationBars["Sign In"].waitForExistence(timeout: 10))
+
+        // Masked to begin with: a secure field, and the control offers to show.
+        let reveal = app.buttons["Show token"]
+        XCTAssertTrue(reveal.waitForExistence(timeout: 5), "No reveal control on the token field")
+        XCTAssertTrue(app.secureTextFields.firstMatch.exists, "Token should start masked")
+
+        let secure = app.secureTextFields.firstMatch
+        secure.tap()
+        secure.typeText("sddi_visible_check")
+
+        reveal.tap()
+        // Revealed: now a plain field, carrying the text that was typed.
+        let plain = app.textFields.firstMatch
+        XCTAssertTrue(plain.waitForExistence(timeout: 5), "Revealing should show a plain field")
+        XCTAssertEqual(plain.value as? String, "sddi_visible_check", "Revealing must not lose the token")
+
+        app.buttons["Hide token"].tap()
+        XCTAssertTrue(
+            app.secureTextFields.firstMatch.waitForExistence(timeout: 5),
+            "Hiding should mask the token again"
+        )
+
+        // Leave no pin behind.
+        app.buttons["Change Server"].tap()
+        enterAddress(app, "localhost:8443")
+        forgetTrustedCertificate(app)
+    }
+
 }

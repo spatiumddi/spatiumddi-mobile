@@ -9,6 +9,14 @@ struct SignInView: View {
     @State var model: SignInModel
     let onChangeServer: () -> Void
 
+    /// Whether the token is currently legible.
+    ///
+    /// Off by default, and reset whenever the app leaves the foreground — a
+    /// revealed credential should not survive on a screen the operator walked
+    /// away from.
+    @State private var isTokenRevealed = false
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         NavigationStack {
             Form {
@@ -19,10 +27,28 @@ struct SignInView: View {
                 }
 
                 Section {
-                    SecureField("sddi_…", text: $model.tokenInput)
+                    HStack {
+                        Group {
+                            if isTokenRevealed {
+                                TextField("sddi_…", text: $model.tokenInput)
+                            } else {
+                                SecureField("sddi_…", text: $model.tokenInput)
+                            }
+                        }
                         .textContentType(.password)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .font(isTokenRevealed ? .body.monospaced() : .body)
+
+                        Button {
+                            isTokenRevealed.toggle()
+                        } label: {
+                            Image(systemName: isTokenRevealed ? "eye.slash" : "eye")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isTokenRevealed ? "Hide token" : "Show token")
+                    }
 
                     Button {
                         model.isScanning = true
@@ -91,6 +117,9 @@ struct SignInView: View {
                 }
             }
             .navigationTitle("Sign In")
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { isTokenRevealed = false }
+            }
             .sheet(isPresented: $model.isScanning) {
                 TokenScannerView(
                     onScanned: { model.apply($0) },
