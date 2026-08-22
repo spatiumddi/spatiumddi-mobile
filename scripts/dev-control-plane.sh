@@ -10,6 +10,12 @@
 #   ./scripts/dev-control-plane.sh stop
 #   ./scripts/dev-control-plane.sh test    # start, run the test suite, stop
 #
+# There is also a proxy mode, for driving the app against a real control plane
+# that only speaks HTTP. The app is HTTPS-only by design, so this terminates TLS
+# locally with the same dev certificate and forwards everything through:
+#
+#   ./scripts/dev-control-plane.sh proxy http://ddi.lab.internal:8077
+#
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -65,6 +71,21 @@ srv.serve_forever()
 PY
 }
 
+proxy() {
+  local upstream="${1:-}"
+  if [[ -z "$upstream" ]]; then
+    echo "usage: $0 proxy <upstream-url>" >&2
+    exit 2
+  fi
+  ensure_certificate
+  stop >/dev/null 2>&1 || true
+  ( cd "$WORK" && { nohup "$ROOT/scripts/dev-tls-proxy.py" "$HEALTHY_PORT" cert.pem key.pem "$upstream" \
+      > proxy.log 2>&1 & echo $! > healthy.pid; } )
+  sleep 2
+  echo "proxy       https://localhost:$HEALTHY_PORT -> $upstream"
+  echo "fingerprint $(fingerprint)"
+}
+
 start() {
   ensure_certificate
   write_server
@@ -86,6 +107,12 @@ stop() {
       rm -f "$WORK/$name.pid"
     fi
   done
+  # A pid file only tracks what this script started. An earlier run that was
+  # interrupted leaves the port held, and the next start fails to bind while
+  # still looking like it worked.
+  pkill -f "$WORK/server.py" 2>/dev/null || true
+  pkill -f "dev-tls-proxy.py" 2>/dev/null || true
+  sleep 1
   echo "stub stopped"
 }
 
@@ -107,5 +134,6 @@ case "${1:-start}" in
   start) start ;;
   stop)  stop ;;
   test)  run_tests ;;
-  *) echo "usage: $0 {start|stop|test}" >&2; exit 2 ;;
+  proxy) shift; proxy "$@" ;;
+  *) echo "usage: $0 {start|stop|test|proxy <upstream-url>}" >&2; exit 2 ;;
 esac
