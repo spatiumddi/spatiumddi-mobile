@@ -38,7 +38,7 @@ fingerprint() {
 
 write_server() {
   cat > "$WORK/server.py" <<'PY'
-import http.server, ssl, sys, json
+import http.server, json, socket, ssl, sys
 
 PORT = int(sys.argv[1])
 MODE = sys.argv[2] if len(sys.argv) > 2 else "healthy"
@@ -62,9 +62,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         sys.stderr.write("REQ %s\n" % (fmt % args)); sys.stderr.flush()
 
+
+class DualStackServer(http.server.ThreadingHTTPServer):
+    """Accept both 127.0.0.1 and ::1.
+
+    `localhost` resolves to ::1 first on macOS. An IPv4-only listener therefore
+    depends on the client falling back, which a Mac does quickly and a CI
+    runner's simulator does not — there the connection simply hangs until the
+    request times out.
+    """
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ctx.load_cert_chain("cert.pem", "key.pem")
-srv = http.server.HTTPServer(("0.0.0.0", PORT), Handler)
+srv = DualStackServer(("::", PORT), Handler)
 srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
 sys.stderr.write("listening on %d mode=%s\n" % (PORT, MODE)); sys.stderr.flush()
 srv.serve_forever()

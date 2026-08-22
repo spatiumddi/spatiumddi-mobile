@@ -22,6 +22,7 @@ jobs:
   trivy:
     name: Trivy
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       security-events: write
@@ -62,6 +63,8 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: macos-latest
+    # CodeQL instruments the Swift compile, so it is roughly triple a plain build.
+    timeout-minutes: 60
     permissions:
       contents: read
       security-events: write

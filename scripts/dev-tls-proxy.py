@@ -15,6 +15,7 @@ Development only. The right answer for a real deployment is TLS on the server
 from __future__ import annotations
 
 import http.server
+import socket
 import ssl
 import sys
 import urllib.error
@@ -78,6 +79,22 @@ def make_handler(upstream: str) -> type[http.server.BaseHTTPRequestHandler]:
     return Handler
 
 
+class DualStackServer(http.server.ThreadingHTTPServer):
+    """Accept both 127.0.0.1 and ::1.
+
+    `localhost` resolves to ::1 first on macOS. An IPv4-only listener therefore
+    depends on the client falling back, which a Mac does quickly and a CI
+    runner's simulator does not — there the connection simply hangs until the
+    request times out.
+    """
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 5:
         print(__doc__, file=sys.stderr)
@@ -88,7 +105,7 @@ def main(argv: list[str]) -> int:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(cert, key)
 
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", port), make_handler(upstream))
+    server = DualStackServer(("::", port), make_handler(upstream))
     server.socket = context.wrap_socket(server.socket, server_side=True)
 
     sys.stderr.write(f"proxying https://localhost:{port} -> {upstream}\n")
