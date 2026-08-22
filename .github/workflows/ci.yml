@@ -47,10 +47,17 @@ jobs:
       # real TLS handshake, then tears it down. Without the stub the trust tests
       # skip, and the run would look green while the security-critical
       # assertions never executed.
+      # Unit tests only on a pull request. UI tests drive a second app process
+      # through the simulator and a hosted runner does not reliably have the
+      # headroom: the runner app was killed before it could connect, failing a
+      # run in which all 58 unit tests passed. They run on main instead, where a
+      # retry costs nobody's review cycle.
       - name: Run tests against the stub control plane
         env:
           SPATIUM_TEST_DESTINATION: ${{ steps.sim.outputs.destination }}
-          SPATIUM_TEST_EXTRA_ARGS: -resultBundlePath ${{ runner.temp }}/TestResults.xcresult
+          SPATIUM_TEST_EXTRA_ARGS: >-
+            -only-testing:SpatiumDDITests
+            -resultBundlePath ${{ runner.temp }}/TestResults.xcresult
         run: ./scripts/dev-control-plane.sh test
 
       - name: Upload test results
@@ -59,5 +66,42 @@ jobs:
         with:
           name: test-results
           path: ${{ runner.temp }}/TestResults.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
+
+  ui-test:
+    name: UI tests
+    # Only on main: slow, and the runner app's bootstrap is not dependable on a
+    # hosted machine. Kept out of the pull-request path so a flake never blocks
+    # a review.
+    if: github.event_name == 'push'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Choose a simulator
+        id: sim
+        run: |
+          destination=$(./scripts/pick-simulator.py)
+          echo "destination=$destination" >> "$GITHUB_OUTPUT"
+
+      - name: Run UI tests against the stub control plane
+        env:
+          SPATIUM_TEST_DESTINATION: ${{ steps.sim.outputs.destination }}
+          # A killed runner app is worth one retry before it is called a failure.
+          SPATIUM_TEST_EXTRA_ARGS: >-
+            -only-testing:SpatiumDDIUITests
+            -retry-tests-on-failure
+            -test-iterations 2
+            -resultBundlePath ${{ runner.temp }}/UITestResults.xcresult
+        run: ./scripts/dev-control-plane.sh test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: ${{ runner.temp }}/UITestResults.xcresult
           retention-days: 7
           if-no-files-found: ignore
