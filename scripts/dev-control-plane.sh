@@ -90,10 +90,13 @@ stop() {
 run_tests() {
   start
   local status=0
+  # CI picks a destination that exists on the runner; locally this default is fine.
+  local destination="${SPATIUM_TEST_DESTINATION:-platform=iOS Simulator,name=iPhone 17 Pro}"
   TEST_RUNNER_SPATIUM_STUB_RUNNING=1 \
   TEST_RUNNER_SPATIUM_EXPECTED_FINGERPRINT="$(fingerprint)" \
   xcodebuild -project "$ROOT/SpatiumDDI/SpatiumDDI.xcodeproj" -scheme SpatiumDDI \
-    -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test || status=$?
+    -destination "$destination" \
+    ${SPATIUM_TEST_EXTRA_ARGS:-} test || status=$?
   stop
   return $status
 }
