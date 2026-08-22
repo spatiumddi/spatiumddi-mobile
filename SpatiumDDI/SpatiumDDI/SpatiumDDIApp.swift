@@ -11,7 +11,7 @@ import SwiftUI
 struct SpatiumDDIApp: App {
     var body: some Scene {
         WindowGroup {
-            ServerSetupView()
+            AppRootView()
         }
     }
 }

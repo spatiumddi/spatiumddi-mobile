@@ -66,21 +66,14 @@ final class ConnectionFlowUITests: XCTestCase {
         attach(app, "03-connected")
 
         // Leave no pin behind, so a re-run starts from the same place.
-        let forget = app.buttons["Forget Trusted Certificate"]
-        if forget.waitForExistence(timeout: 5) { forget.tap() }
+        forgetTrustedCertificate(app)
     }
 
     func testDecliningTheCertificateRefusesTheConnection() throws {
         let app = XCUIApplication()
         app.launch()
 
-        let field = app.textFields.firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 10))
-        field.tap()
-        field.typeText("localhost:8443")
-        app.buttons["Connect"].tap()
-
-        XCTAssertTrue(app.staticTexts["Verify Certificate"].waitForExistence(timeout: 15))
+        connectExpectingChallenge(app, "localhost:8443")
         app.buttons["Don't Trust"].tap()
 
         let refused = app.staticTexts.containing(

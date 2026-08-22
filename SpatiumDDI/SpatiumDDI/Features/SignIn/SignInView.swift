@@ -1,0 +1,83 @@
+//
+//  SignInView.swift
+//  SpatiumDDI
+//
+
+import SwiftUI
+
+struct SignInView: View {
+    @State var model: SignInModel
+    let onChangeServer: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LabeledContent("Server", value: model.address.displayName)
+                    Button("Change Server", action: onChangeServer)
+                        .disabled(model.isBusy)
+                }
+
+                Section {
+                    SecureField("sddi_…", text: $model.tokenInput)
+                        .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("API Token")
+                } footer: {
+                    if !model.tokenInput.isEmpty && !model.looksLikeAToken {
+                        Label(
+                            "That doesn't look like an API token or a JWT. Check what you pasted.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .foregroundStyle(.orange)
+                    } else {
+                        Text(
+                            "Create a token in the SpatiumDDI web UI under your account settings, then paste it here."
+                        )
+                    }
+                }
+
+                if let reason = model.biometryUnavailableReason {
+                    Section {
+                        Label(reason, systemImage: "lock.slash.fill")
+                            .foregroundStyle(.red)
+                    } footer: {
+                        Text(
+                            "A token is only stored behind a biometric lock. Set up biometrics and a device passcode to continue."
+                        )
+                    }
+                } else {
+                    Section {
+                        Button {
+                            Task { await model.signIn() }
+                        } label: {
+                            HStack {
+                                Text(model.state == .storing ? "Saving…" : "Sign In")
+                                Spacer()
+                                if model.isBusy { ProgressView() }
+                            }
+                        }
+                        .disabled(model.tokenInput.isEmpty || model.isBusy)
+                    } footer: {
+                        Text(
+                            "The token is stored in the Keychain and unlocked with \(model.biometryDescription). It never leaves this device except as an Authorization header to \(model.address.displayName)."
+                        )
+                    }
+                }
+
+                if case .failed(let message) = model.state {
+                    Section("Status") {
+                        Label {
+                            Text(message)
+                        } icon: {
+                            Image(systemName: "xmark.octagon.fill").foregroundStyle(.red)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Sign In")
+        }
+    }
+}

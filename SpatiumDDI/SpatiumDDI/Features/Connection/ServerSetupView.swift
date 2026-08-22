@@ -7,6 +7,9 @@ import SwiftUI
 
 /// Where an operator points the app at their control plane.
 struct ServerSetupView: View {
+    /// Called once the operator has a reachable, trusted server.
+    var onConnected: (ServerAddress) -> Void = { _ in }
+
     @State private var model = ConnectionModel()
     @FocusState private var addressFocused: Bool
 
@@ -80,6 +83,7 @@ struct ServerSetupView: View {
                 } icon: {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
                 }
+                Button("Continue") { onConnected(address) }
                 Button("Forget Trusted Certificate", role: .destructive) {
                     model.forgetTrust(for: address)
                 }

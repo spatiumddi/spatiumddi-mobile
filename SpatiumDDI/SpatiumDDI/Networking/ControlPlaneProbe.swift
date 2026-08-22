@@ -17,6 +17,21 @@ nonisolated enum ProbeOutcome: Sendable, Equatable {
     case failed(ConnectionError)
 }
 
+/// The result of presenting a token to the control plane.
+nonisolated enum AuthOutcome: Sendable, Equatable {
+    /// The server accepted the token.
+    case authenticated
+    /// The token is absent, expired, or revoked.
+    case rejected
+    /// The token is valid but this account may not read permissions. Still a
+    /// successful authentication, and non-negotiable #4 says show it honestly
+    /// rather than swallow it into a blank screen.
+    case forbidden
+    case maintenance(retryAfter: TimeInterval?)
+    case trustRequired(CertificateInfo)
+    case failed(ConnectionError)
+}
+
 nonisolated enum ConnectionError: Error, Sendable, Equatable, LocalizedError {
     case cannotFindHost(String)
     case cannotConnect(String)
@@ -56,18 +71,53 @@ nonisolated struct ControlPlaneProbe: Sendable {
         self.trustStore = trustStore
     }
 
-    func probe(_ address: ServerAddress) async -> ProbeOutcome {
+    /// Builds a session that applies this app's trust policy.
+    ///
+    /// Ephemeral: no on-disk cache, cookie jar or credential store. Non-negotiable
+    /// #3 — a stale-but-plausible view of production networking is worse than none.
+    private func makeSession(for address: ServerAddress) -> (URLSession, ServerTrustDelegate) {
         let delegate = ServerTrustDelegate(address: address, trustStore: trustStore)
-
-        // Ephemeral: no on-disk cache, cookie jar or credential store. Non-negotiable
-        // #3 — a stale-but-plausible view of production networking is worse than none.
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
         configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         configuration.timeoutIntervalForRequest = 15
         configuration.waitsForConnectivity = false
+        return (URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil), delegate)
+    }
 
-        let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+    /// Presents a token and reports whether the server accepted it.
+    ///
+    /// Reads the status code and nothing else — the permissions payload needs
+    /// the generated client, but "is this token good" does not.
+    func validateToken(_ token: String, for address: ServerAddress) async -> AuthOutcome {
+        let (session, delegate) = makeSession(for: address)
+        defer { session.finishTasksAndInvalidate() }
+
+        var request = URLRequest(url: address.apiBaseURL.appending(path: "auth/me/permissions"))
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (_, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return .failed(.transport("The server sent a response the app couldn't read."))
+            }
+            switch http.statusCode {
+            case 200...299: return .authenticated
+            case 401: return .rejected
+            case 403: return .forbidden
+            case 503: return .maintenance(retryAfter: Self.retryAfter(from: http))
+            default: return .failed(.notAControlPlane(status: http.statusCode))
+            }
+        } catch {
+            if let presented = delegate.refusedCertificate { return .trustRequired(presented) }
+            return .failed(Self.classify(error, address: address))
+        }
+    }
+
+    func probe(_ address: ServerAddress) async -> ProbeOutcome {
+        let (session, delegate) = makeSession(for: address)
         defer { session.finishTasksAndInvalidate() }
 
         var request = URLRequest(url: address.healthURL)
