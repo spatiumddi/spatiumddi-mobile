@@ -11,12 +11,21 @@ import Testing
 @Suite("Load state")
 @MainActor
 struct LoadStateTests {
+    /// The message as an operator would read it.
+    ///
+    /// `LocalizedStringResource` has no `contains`, and that is the point — it
+    /// is a key plus arguments, not text, until something resolves it. These
+    /// tests assert on the resolved English because that is what ships today.
+    private func text(_ resource: LocalizedStringResource) -> String {
+        String(localized: resource)
+    }
+
     private func describe<Value>(_ state: LoadState<Value>) -> String {
         switch state {
         case .idle: "idle"
         case .loading: "loading"
         case .loaded: "loaded"
-        case .failed(let message): "failed(\(message))"
+        case .failed(let message): "failed(\(String(localized: message)))"
         }
     }
 
@@ -37,7 +46,7 @@ struct LoadStateTests {
             Issue.record("expected .failed, got \(describe(state))")
             return
         }
-        #expect(message.contains("permission"))
+        #expect(text(message).contains("permission"))
     }
 
     @Test("A maintenance window is not reported as a network failure")
@@ -47,7 +56,7 @@ struct LoadStateTests {
             Issue.record("expected .failed, got \(describe(state))")
             return
         }
-        #expect(message.contains("change window"))
+        #expect(text(message).contains("change window"))
     }
 
     /// The bug this guards against: cancellation arriving as `URLError.cancelled`
@@ -82,12 +91,14 @@ struct LoadStateTests {
             Issue.record("expected .failed, got \(describe(state))")
             return
         }
-        #expect(message.contains("didn't respond"))
+        #expect(text(message).contains("didn't respond"))
     }
 }
 
 @Suite("Feature-module errors")
 struct FeatureModuleErrorTests {
+    private func text(_ resource: LocalizedStringResource) -> String { String(localized: resource) }
+
     /// The platform answers 404 from every endpoint of a disabled module, with
     /// the module named in the body. Reporting the generic 404 message —
     /// "it may have been deleted" — tells an operator their data is gone, which
@@ -104,7 +115,7 @@ struct FeatureModuleErrorTests {
         let error = APIStatusError(status: 404, detail: detail)
         #expect(error.disabledFeatureModule == module)
 
-        let message = APIErrorMessage.describe(error)
+        let message = text(APIErrorMessage.describe(error))
         #expect(message.contains(module))
         #expect(!message.contains("deleted"), "a disabled module is not a deletion")
     }
@@ -113,14 +124,14 @@ struct FeatureModuleErrorTests {
     func genuineNotFound() {
         let error = APIStatusError(status: 404, detail: "Not Found")
         #expect(error.disabledFeatureModule == nil)
-        #expect(APIErrorMessage.describe(error).contains("Not Found"))
+        #expect(text(APIErrorMessage.describe(error)).contains("Not Found"))
     }
 
     @Test("A 404 with no body falls back to the generic wording")
     func bodilessNotFound() {
         let error = APIStatusError(status: 404)
         #expect(error.disabledFeatureModule == nil)
-        #expect(APIErrorMessage.describe(error).contains("deleted"))
+        #expect(text(APIErrorMessage.describe(error)).contains("deleted"))
     }
 
     // The gate fails open: a non-admin cannot read /admin/feature-modules, and
@@ -137,13 +148,15 @@ struct FeatureModuleErrorTests {
 
 @Suite("Cancellation is never shown raw")
 struct CancellationMessageTests {
+    private func text(_ resource: LocalizedStringResource) -> String { String(localized: resource) }
+
     /// This exact string reached a screen: "The operation couldn't be completed.
     /// (Swift.CancellationError error 1.)" on the IPAM list, because that view
     /// still had its own `catch` instead of going through `LoadState.fetching`.
     /// Swift's own error text is never something to put in front of an operator.
     @Test("A CancellationError never renders as Swift's own description")
     func cancellationIsNotRaw() {
-        let message = APIErrorMessage.describe(CancellationError())
+        let message = text(APIErrorMessage.describe(CancellationError()))
         #expect(!message.contains("CancellationError"))
         #expect(!message.contains("couldn't be completed"))
         #expect(message == "The request was cancelled.")
@@ -151,7 +164,7 @@ struct CancellationMessageTests {
 
     @Test("A cancelled URL request is not raw either")
     func urlCancellationIsNotRaw() {
-        let message = APIErrorMessage.describe(URLError(.cancelled))
+        let message = text(APIErrorMessage.describe(URLError(.cancelled)))
         #expect(!message.contains("NSURLError"))
         #expect(message.contains("cancelled"))
     }

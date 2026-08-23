@@ -15,7 +15,7 @@ import OpenAPIRuntime
 nonisolated enum APIErrorMessage {
     /// The message for a status the call site caught, preferring what the
     /// server actually said over this app's generic wording.
-    static func describe(_ error: APIStatusError) -> String {
+    static func describe(_ error: APIStatusError) -> LocalizedStringResource {
         // A disabled feature module is a 404 that means something specific and
         // benign. The generic 404 text — "it may have been deleted" — would
         // tell an operator their data is gone, which is both wrong and the kind
@@ -25,12 +25,14 @@ nonisolated enum APIErrorMessage {
                 "The \(module) feature module is switched off on this server, so there's nothing here to show."
         }
         if let detail = error.detail, error.status == 404 || error.status == 403 {
-            return detail
+            // The server's own words, passed through. Not translatable here —
+            // it is data, and inventing a key for it would be a lie.
+            return LocalizedStringResource(stringLiteral: detail)
         }
         return describe(status: error.status)
     }
 
-    static func describe(_ error: any Error) -> String {
+    static func describe(_ error: any Error) -> LocalizedStringResource {
         if let status = error as? APIStatusError { return describe(status) }
 
         // Cancellation is never news. It reached a screen once — as
@@ -55,7 +57,7 @@ nonisolated enum APIErrorMessage {
     /// `ClientError`, for any status the document doesn't declare — and this
     /// document declares only 200 and 422. A 401, 403 or 503 therefore arrives
     /// as `Output.undocumented(statusCode:)`, and only the call site can see it.
-    static func describe(status: Int) -> String {
+    static func describe(status: Int) -> LocalizedStringResource {
         switch status {
         case 401:
             "Your session is no longer valid. Sign in again."
@@ -76,9 +78,11 @@ nonisolated enum APIErrorMessage {
         }
     }
 
-    private static func describeTransport(_ error: any Error) -> String {
+    private static func describeTransport(_ error: any Error) -> LocalizedStringResource {
         let nsError = error as NSError
-        guard nsError.domain == NSURLErrorDomain else { return error.localizedDescription }
+        guard nsError.domain == NSURLErrorDomain else {
+            return LocalizedStringResource(stringLiteral: error.localizedDescription)
+        }
         switch nsError.code {
         case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
             return "Can't reach the server — check this device's network."
@@ -92,7 +96,7 @@ nonisolated enum APIErrorMessage {
             // invalidated under an in-flight request.
             return "The request was cancelled."
         default:
-            return error.localizedDescription
+            return LocalizedStringResource(stringLiteral: error.localizedDescription)
         }
     }
 }

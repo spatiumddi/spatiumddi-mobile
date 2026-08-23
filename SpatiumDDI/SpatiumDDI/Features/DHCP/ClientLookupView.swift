@@ -115,7 +115,7 @@ struct ClientLookupView: View {
                     Text("Lease history")
                 } footer: {
                     if case .loaded(let results) = state, !results.isEmpty {
-                        Text("Most recent first. \(results.count) record\(results.count == 1 ? "" : "s").")
+                        Text("Most recent first. ^[\(results.count) record](inflect: true).")
                     }
                 }
             }

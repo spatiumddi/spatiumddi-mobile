@@ -14,7 +14,13 @@ enum LoadState<Value> {
     case idle
     case loading
     case loaded(Value)
-    case failed(String)
+    /// Why it failed, as something that can be translated.
+    ///
+    /// `LocalizedStringResource` rather than `String` because a `String` handed
+    /// to `Text` is rendered verbatim — it never reaches the string catalogue.
+    /// Failure messages are the text an operator most needs to understand, so
+    /// they are exactly the wrong thing to leave untranslatable.
+    case failed(LocalizedStringResource)
 }
 
 /// Renders the four states of a fetch consistently.
@@ -54,8 +60,12 @@ struct LoadStateView<Value, Content: View>: View {
 
         case .failed(let message):
             VStack(alignment: .leading, spacing: 12) {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
+                Label {
+                    Text(message)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .foregroundStyle(.red)
                 Button("Try Again", action: retry)
             }
             .listRowSeparator(.hidden)

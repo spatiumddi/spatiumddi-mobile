@@ -52,7 +52,7 @@ struct DHCPBrowseView: View {
                                     Badge(text: group.mode, tint: .teal)
                                     if group.autoFailover { Badge(text: "auto-failover") }
                                     if let members = group.keaMemberCount {
-                                        Text("\(members) member\(members == 1 ? "" : "s")")
+                                        Text("^[\(members) member](inflect: true)")
                                             .font(.caption2).foregroundStyle(.secondary)
                                     }
                                 }

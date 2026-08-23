@@ -128,11 +128,11 @@ struct IPAMAddressDetailView: View {
                     }
                     if let aliases = current.aliasCount, aliases > 0 {
                         Label(
-                            "\(aliases) DNS alias\(aliases == 1 ? "" : "es")",
+                            "^[\(aliases) DNS alias](inflect: true)",
                             systemImage: "arrow.triangle.branch")
                     }
                     if let nat = current.natMappingCount, nat > 0 {
-                        Label("\(nat) NAT mapping\(nat == 1 ? "" : "s")", systemImage: "arrow.left.and.right")
+                        Label("^[\(nat) NAT mapping](inflect: true)", systemImage: "arrow.left.and.right")
                     }
                 } header: {
                     Text("Linked")

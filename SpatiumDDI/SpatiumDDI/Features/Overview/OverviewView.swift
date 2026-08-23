@@ -210,7 +210,7 @@ private struct IPAMSummarySection: View {
                     UtilisationBar(percent: totals.utilisationPercent)
                     if totals.ipv6SubnetCount > 0 {
                         Text(
-                            "\(totals.ipv6SubnetCount) IPv6 subnet\(totals.ipv6SubnetCount == 1 ? "" : "s") excluded — utilisation isn't a useful measure of a /64."
+                            "^[\(totals.ipv6SubnetCount) IPv6 subnet](inflect: true) excluded — utilisation isn't a useful measure of a /64."
                         )
                         .font(.caption2)
                         .foregroundStyle(.tertiary)

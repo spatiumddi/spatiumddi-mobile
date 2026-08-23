@@ -154,6 +154,59 @@ the token store refuses to save — which is the security rule working, not a bu
 
 ---
 
+## Strings and localisation
+
+Every user-facing string goes through the string catalogue at
+`SpatiumDDI/SpatiumDDI/Localizable.xcstrings`. The app ships English only, but
+the *structure* is in place, which is the part that is expensive to retrofit.
+
+Two rules keep it that way:
+
+**Never hand a `String` to `Text`.** SwiftUI localises a string *literal*,
+because that becomes a `LocalizedStringKey`. A `String` variable is rendered
+verbatim and never reaches the catalogue. Anything that carries a message for
+later display — `LoadState.failed`, everything `APIErrorMessage` returns — uses
+`LocalizedStringResource` for exactly this reason. Failure messages are the text
+an operator most needs to understand, so they are the worst thing to leave
+untranslatable.
+
+**Never build a plural by hand.** `"\(n) record\(n == 1 ? "" : "s")"` is correct
+in English and wrong nearly everywhere else — Polish has three plural forms,
+Arabic six. Use inflection instead:
+
+```swift
+Text("^[\(count) record](inflect: true)")
+```
+
+Xcode merges extracted strings into the catalogue when you build **in the IDE**.
+`xcodebuild` emits the same `.stringsdata` but does not merge it, so a
+command-line-only workflow leaves the catalogue stale. After adding strings:
+
+```bash
+xcodebuild -project SpatiumDDI/SpatiumDDI.xcodeproj -scheme SpatiumDDI \
+  -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation build
+
+./scripts/build-string-catalog.py \
+  ~/Library/Developer/Xcode/DerivedData/SpatiumDDI-*/Build
+```
+
+The script only ever adds keys. A string missing from one build may just be
+behind code that build did not compile, and discarding a translator's work on
+that guess is not a trade worth making.
+
+### What is already correct without translation
+
+Dates, numbers and relative times go through `.formatted()`; sorting uses
+`localizedStandardCompare`; filtering uses `localizedCaseInsensitiveContains`.
+Those adapt to the device locale today, in an English-only build. SwiftUI's
+leading/trailing layout means right-to-left works without changes.
+
+**iOS does not translate your strings.** It localises its own UI and formats
+dates and numbers; the words in this app stay English until someone writes the
+translations.
+
+---
+
 ## Formatting
 
 CI lints strictly; fix locally before pushing.
