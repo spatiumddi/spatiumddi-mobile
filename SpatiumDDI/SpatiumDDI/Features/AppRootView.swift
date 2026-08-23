@@ -3,6 +3,7 @@
 //  SpatiumDDI
 //
 
+import SpatiumAPI
 import SwiftUI
 
 struct AppRootView: View {
@@ -71,10 +72,8 @@ struct AppRootView: View {
 
 /// The signed-in shell.
 ///
-/// Only the surfaces that are actually built appear here. Tabs for DNS, DHCP and
-/// alerts arrive with their views rather than as empty placeholders — an app for
-/// production networking should not show a screen implying it knows something it
-/// does not.
+/// Only the surfaces that are actually built appear here — an app for production
+/// networking should not show a screen implying it knows something it does not.
 struct SignedInView: View {
     let address: ServerAddress
     let token: String
@@ -95,19 +94,41 @@ struct SignedInView: View {
         Group {
             if let session {
                 TabView {
+                    Tab("Overview", systemImage: "gauge.with.dots.needle.33percent") {
+                        NavigationStack { OverviewView(session: session) }
+                    }
+                    Tab("Alerts", systemImage: "bell") {
+                        NavigationStack { AlertsView(session: session) }
+                    }
                     Tab("IPAM", systemImage: "square.grid.3x3") {
                         NavigationStack { IPAMBrowseView(session: session) }
+                    }
+                    Tab("DNS", systemImage: "globe") {
+                        NavigationStack { DNSBrowseView(session: session) }
+                    }
+                    Tab("DHCP", systemImage: "arrow.left.arrow.right") {
+                        NavigationStack { DHCPBrowseView(session: session) }
                     }
                     Tab("Server", systemImage: "gear") {
                         NavigationStack {
                             ServerDetailView(
                                 address: session.address,
+                                session: session,
                                 onSignOut: onSignOut,
                                 onChangeServer: onChangeServer
                             )
                         }
                     }
+                    // The search role puts this in the system's own search slot
+                    // rather than making it the seventh thing in a "More" list.
+                    Tab(role: .search) {
+                        NavigationStack { SearchView(session: session) }
+                    }
                 }
+                // Six tabs plus search overflow into "More" on a phone; on an
+                // iPad the same declaration becomes a sidebar, which is where a
+                // surface this wide actually wants to be.
+                .tabViewStyle(.sidebarAdaptable)
             } else {
                 ProgressView()
             }
@@ -126,17 +147,70 @@ struct SignedInView: View {
     }
 }
 
-/// Connection and session controls.
+/// Connection, identity and session controls.
 struct ServerDetailView: View {
     let address: ServerAddress
+    let session: ControlPlaneSession
     let onSignOut: () -> Void
     let onChangeServer: () -> Void
+
+    @State private var identity: LoadState<Components.Schemas.AppApiV1AuthRouterUserResponse> = .idle
+    @State private var permissions: LoadState<Components.Schemas.MyPermissionsResponse> = .idle
 
     var body: some View {
         List {
             Section("Connection") {
                 LabeledContent("Server", value: address.displayName)
-                LabeledContent("Session", value: "Authenticated")
+                LabeledContent("Built against", value: SupportedServer.minimum.displayName)
+            }
+
+            Section("Signed in as") {
+                LoadStateView(
+                    state: identity,
+                    emptyMessage: "The server didn't return an identity.",
+                    retry: { Task { await fetchIdentity() } }
+                ) { me in
+                    LabeledContent("User", value: me.displayName.isEmpty ? me.username : me.displayName)
+                    LabeledContent("Username", value: me.username)
+                    if !me.email.isEmpty { LabeledContent("Email", value: me.email) }
+                    LabeledContent("Auth source", value: me.authSource)
+                    if me.forcePasswordChange {
+                        Label(
+                            "This account must change its password on the web console.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    }
+                }
+            }
+
+            Section {
+                LoadStateView(
+                    state: permissions,
+                    emptyMessage: "This account has no grants.",
+                    retry: { Task { await fetchPermissions() } }
+                ) { permissions in
+                    if permissions.isSuperadmin {
+                        Label("Superadmin — every action on every resource.", systemImage: "key.fill")
+                            .foregroundStyle(.orange)
+                    } else {
+                        ForEach(Array(permissions.grants.enumerated()), id: \.offset) { _, grant in
+                            LabeledContent(grant.resourceType) {
+                                Text(grant.action).font(.caption.monospaced())
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text("Permissions")
+            } footer: {
+                // Non-negotiable #4, said out loud rather than only honoured in
+                // code: this list is what the app uses to decide what to show,
+                // and it is not what stops anyone doing anything.
+                Text(
+                    "The server enforces these independently. What this app shows or hides is a convenience, not a security boundary."
+                )
             }
 
             Section {
@@ -147,5 +221,33 @@ struct ServerDetailView: View {
             }
         }
         .navigationTitle("Server")
+        .refreshable { await refresh() }
+        .task { if case .idle = identity { await refresh() } }
+    }
+
+    private func refresh() async {
+        async let a: Void = fetchIdentity()
+        async let b: Void = fetchPermissions()
+        _ = await (a, b)
+    }
+
+    private func fetchIdentity() async {
+        identity = .loading
+        identity = await LoadState.fetching {
+            switch try await session.client.getMeApiV1AuthMeGet() {
+            case .ok(let ok): return try ok.body.json
+            case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+            }
+        }
+    }
+
+    private func fetchPermissions() async {
+        permissions = .loading
+        permissions = await LoadState.fetching {
+            switch try await session.client.getMyPermissionsApiV1AuthMePermissionsGet() {
+            case .ok(let ok): return try ok.body.json
+            case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+            }
+        }
     }
 }
