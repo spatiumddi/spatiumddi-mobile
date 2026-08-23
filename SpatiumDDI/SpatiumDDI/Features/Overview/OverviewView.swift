@@ -326,7 +326,7 @@ private struct DHCPSummarySection: View {
 /// actually happened.
 private struct CountTile: View {
     let value: Int?
-    let label: String
+    let label: LocalizedStringResource
     let tint: Color
 
     private var text: String { value?.formatted() ?? "—" }
@@ -345,6 +345,7 @@ private struct CountTile: View {
         .padding(.vertical, 8)
         .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(value.map { "\($0) \(label)" } ?? "\(label) unavailable")
+        .accessibilityLabel(
+            value.map { "\($0) \(String(localized: label))" } ?? "\(String(localized: label)) unavailable")
     }
 }

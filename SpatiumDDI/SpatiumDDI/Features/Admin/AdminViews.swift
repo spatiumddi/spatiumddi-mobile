@@ -57,7 +57,7 @@ struct NewDevicesView: View {
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                             if sighting.isRandomized {
-                                Badge(text: "randomised MAC")
+                                Badge(localised: "randomised MAC")
                             }
                         }
                     }
@@ -132,9 +132,9 @@ struct AccessView: View {
                             HStack {
                                 Text(user.displayName.isEmpty ? user.username : user.displayName)
                                 Spacer()
-                                if user.isSuperadmin { Badge(text: "superadmin", tint: .orange) }
-                                if !user.isActive { Badge(text: "disabled", tint: .secondary) }
-                                if user.locked == true { Badge(text: "locked", tint: .red) }
+                                if user.isSuperadmin { Badge(localised: "superadmin", tint: .orange) }
+                                if !user.isActive { Badge(localised: "disabled", tint: .secondary) }
+                                if user.locked == true { Badge(localised: "locked", tint: .red) }
                             }
                             Text("\(user.username) · \(user.authSource)")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -153,8 +153,8 @@ struct AccessView: View {
                             HStack {
                                 Text(row.displayName.isEmpty ? row.username : row.displayName)
                                 Spacer()
-                                if row.isCurrent { Badge(text: "this device", tint: .green) }
-                                if row.revoked { Badge(text: "revoked", tint: .red) }
+                                if row.isCurrent { Badge(localised: "this device", tint: .green) }
+                                if row.revoked { Badge(localised: "revoked", tint: .red) }
                             }
                             if let ip = row.sourceIp, !ip.isEmpty {
                                 Text(ip).font(.caption.monospaced()).foregroundStyle(.secondary)
@@ -178,7 +178,7 @@ struct AccessView: View {
                             HStack {
                                 Text(token.name)
                                 Spacer()
-                                if !token.isActive { Badge(text: "inactive", tint: .secondary) }
+                                if !token.isActive { Badge(localised: "inactive", tint: .secondary) }
                                 ExpiryBadge(date: token.expiresAt)
                             }
                             // The prefix only. The secret is shown once, at
@@ -329,7 +329,9 @@ struct TrashView: View {
                             // A cascade delete took other rows with it, and
                             // restoring brings them all back — worth knowing
                             // before anyone reaches for the web console.
-                            if entry.batchSize > 1 { Text("\(entry.batchSize) rows in this deletion") }
+                            if entry.batchSize > 1 {
+                                Text("^[\(entry.batchSize) row](inflect: true) in this deletion")
+                            }
                         }
                         .font(.caption2).foregroundStyle(.tertiary)
                     }

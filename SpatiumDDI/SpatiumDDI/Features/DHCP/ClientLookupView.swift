@@ -34,7 +34,7 @@ struct ClientLookupView: View {
     var body: some View {
         List {
             Section {
-                TextField("MAC, IP address or hostname", text: $query)
+                TextField("Filter by IP, hostname or MAC", text: $query)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .submitLabel(.search)

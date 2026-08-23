@@ -27,7 +27,10 @@ extension Duration {
 extension Date {
     /// "3 minutes ago", or "never" for an absent timestamp.
     static func relativeOrNever(_ date: Date?) -> String {
-        guard let date else { return "Never" }
+        // "Never" is this app's word, not the server's, so it is resolved
+        // through the catalogue — otherwise a translated build reads
+        // "3 minutos atrás" beside an English "Never".
+        guard let date else { return String(localized: "Never") }
         return date.formatted(.relative(presentation: .named))
     }
 }
@@ -43,6 +46,6 @@ extension Int {
 
     /// An address count, or "very large" where the real figure was clamped.
     var formattedAddressCount: String {
-        isClampedCount ? "very large" : formatted()
+        isClampedCount ? String(localized: "very large") : formatted()
     }
 }

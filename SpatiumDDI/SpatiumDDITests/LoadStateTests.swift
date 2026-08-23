@@ -11,21 +11,12 @@ import Testing
 @Suite("Load state")
 @MainActor
 struct LoadStateTests {
-    /// The message as an operator would read it.
-    ///
-    /// `LocalizedStringResource` has no `contains`, and that is the point — it
-    /// is a key plus arguments, not text, until something resolves it. These
-    /// tests assert on the resolved English because that is what ships today.
-    private func text(_ resource: LocalizedStringResource) -> String {
-        String(localized: resource)
-    }
-
     private func describe<Value>(_ state: LoadState<Value>) -> String {
         switch state {
         case .idle: "idle"
         case .loading: "loading"
         case .loaded: "loaded"
-        case .failed(let message): "failed(\(String(localized: message)))"
+        case .failed(let message): "failed(\(message.englishText))"
         }
     }
 
@@ -46,7 +37,7 @@ struct LoadStateTests {
             Issue.record("expected .failed, got \(describe(state))")
             return
         }
-        #expect(text(message).contains("permission"))
+        #expect(message.englishText.contains("permission"))
     }
 
     @Test("A maintenance window is not reported as a network failure")
@@ -56,7 +47,7 @@ struct LoadStateTests {
             Issue.record("expected .failed, got \(describe(state))")
             return
         }
-        #expect(text(message).contains("change window"))
+        #expect(message.englishText.contains("change window"))
     }
 
     /// The bug this guards against: cancellation arriving as `URLError.cancelled`
@@ -91,13 +82,12 @@ struct LoadStateTests {
             Issue.record("expected .failed, got \(describe(state))")
             return
         }
-        #expect(text(message).contains("didn't respond"))
+        #expect(message.englishText.contains("didn't respond"))
     }
 }
 
 @Suite("Feature-module errors")
 struct FeatureModuleErrorTests {
-    private func text(_ resource: LocalizedStringResource) -> String { String(localized: resource) }
 
     /// The platform answers 404 from every endpoint of a disabled module, with
     /// the module named in the body. Reporting the generic 404 message —
@@ -115,7 +105,7 @@ struct FeatureModuleErrorTests {
         let error = APIStatusError(status: 404, detail: detail)
         #expect(error.disabledFeatureModule == module)
 
-        let message = text(APIErrorMessage.describe(error))
+        let message = APIErrorMessage.describe(error).englishText
         #expect(message.contains(module))
         #expect(!message.contains("deleted"), "a disabled module is not a deletion")
     }
@@ -124,14 +114,14 @@ struct FeatureModuleErrorTests {
     func genuineNotFound() {
         let error = APIStatusError(status: 404, detail: "Not Found")
         #expect(error.disabledFeatureModule == nil)
-        #expect(text(APIErrorMessage.describe(error)).contains("Not Found"))
+        #expect(APIErrorMessage.describe(error).englishText.contains("Not Found"))
     }
 
     @Test("A 404 with no body falls back to the generic wording")
     func bodilessNotFound() {
         let error = APIStatusError(status: 404)
         #expect(error.disabledFeatureModule == nil)
-        #expect(text(APIErrorMessage.describe(error)).contains("deleted"))
+        #expect(APIErrorMessage.describe(error).englishText.contains("deleted"))
     }
 
     // The gate fails open: a non-admin cannot read /admin/feature-modules, and
@@ -148,7 +138,6 @@ struct FeatureModuleErrorTests {
 
 @Suite("Cancellation is never shown raw")
 struct CancellationMessageTests {
-    private func text(_ resource: LocalizedStringResource) -> String { String(localized: resource) }
 
     /// This exact string reached a screen: "The operation couldn't be completed.
     /// (Swift.CancellationError error 1.)" on the IPAM list, because that view
@@ -156,7 +145,7 @@ struct CancellationMessageTests {
     /// Swift's own error text is never something to put in front of an operator.
     @Test("A CancellationError never renders as Swift's own description")
     func cancellationIsNotRaw() {
-        let message = text(APIErrorMessage.describe(CancellationError()))
+        let message = APIErrorMessage.describe(CancellationError()).englishText
         #expect(!message.contains("CancellationError"))
         #expect(!message.contains("couldn't be completed"))
         #expect(message == "The request was cancelled.")
@@ -164,8 +153,71 @@ struct CancellationMessageTests {
 
     @Test("A cancelled URL request is not raw either")
     func urlCancellationIsNotRaw() {
-        let message = text(APIErrorMessage.describe(URLError(.cancelled)))
+        let message = APIErrorMessage.describe(URLError(.cancelled)).englishText
         #expect(!message.contains("NSURLError"))
         #expect(message.contains("cancelled"))
+    }
+
+    @Suite("Server text is never interpreted")
+    struct ServerTextTests {
+        /// The finding this exists for: routing a server's `detail` through a
+        /// localised value puts it on SwiftUI's Markdown-parsing path, so a
+        /// compromised or MITM'd control plane could render a **tappable link**
+        /// inside the app's own error banner — in an app holding a Keychain token.
+        /// CLAUDE.md expects HTTP-only lab installs, so that reach is not theoretical.
+        @Test(
+            "A detail that looks like Markdown stays server text",
+            arguments: [
+                "[Contact support](https://phish.example/reset)",
+                "[click me](javascript:alert(1))",
+                "https://ddi.internal.example/x",
+                "Zone `example.com` is locked",
+                "Delete **all** records",
+            ]
+        )
+        func detailIsNeverParsed(_ detail: String) {
+            let message = APIErrorMessage.describe(APIStatusError(status: 403, detail: detail))
+            guard case .server(let text) = message else {
+                Issue.record("server detail must be .server, got \(message)")
+                return
+            }
+            // Verbatim: character-for-character what the server sent, so nothing
+            // downstream can parse it into a link or strip its punctuation.
+            #expect(text == detail)
+            #expect(message.englishText == detail)
+        }
+
+        /// The second half of the same finding: `LocalizedStringResource(stringLiteral:)`
+        /// sets the resource's *key*, so a `detail` colliding with one of this app's
+        /// own keys would render that key's translation instead of the server's
+        /// reason — the opposite of showing a 403 honestly.
+        @Test(
+            "A detail colliding with an app key still shows the server's words",
+            arguments: ["Access", "Status", "Try Again", "Nothing here", "Trust"]
+        )
+        func detailDoesNotCollideWithCatalogue(_ detail: String) {
+            let message = APIErrorMessage.describe(APIStatusError(status: 404, detail: detail))
+            guard case .server(let text) = message else {
+                Issue.record("server detail must be .server, got \(message)")
+                return
+            }
+            #expect(text == detail)
+        }
+
+        /// This app's own wording goes the other way — it must be translatable.
+        @Test("The app's own messages are localisable")
+        func appMessagesAreLocalised() {
+            guard case .app = APIErrorMessage.describe(status: 403) else {
+                Issue.record("a 403 message is this app's wording and must be .app")
+                return
+            }
+            guard
+                case .app = APIErrorMessage.describe(
+                    APIStatusError(status: 404, detail: "Feature 'network.vrf' is disabled."))
+            else {
+                Issue.record("the disabled-module message is this app's wording")
+                return
+            }
+        }
     }
 }

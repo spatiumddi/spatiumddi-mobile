@@ -170,6 +170,19 @@ later display — `LoadState.failed`, everything `APIErrorMessage` returns — u
 an operator most needs to understand, so they are the worst thing to leave
 untranslatable.
 
+**Never route server text through a localised value.** `Text` parses Markdown
+for a localised value, so a control plane's error `detail` of
+`[Contact support](https://phish.example)` would render as a *tappable link*
+inside the app's own error banner. And `LocalizedStringResource(stringLiteral:)`
+sets the resource's **key**, so a `detail` of `Access` would be looked up in this
+app's catalogue and render whatever the app's own "Access" label says. Use
+`FailureMessage.server(_:)`, which renders through `Text(verbatim:)` — neither
+parsed nor looked up. `FailureMessage.app(_:)` is for this app's own wording.
+
+The same split applies to `Badge`: `Badge(localised:)` for words this app chose,
+`Badge(text:)` for a value the server chose. Translating a zone type or a lease
+state would misreport what the server said.
+
 **Never build a plural by hand.** `"\(n) record\(n == 1 ? "" : "s")"` is correct
 in English and wrong nearly everywhere else — Polish has three plural forms,
 Arabic six. Use inflection instead:
@@ -192,7 +205,13 @@ xcodebuild -project SpatiumDDI/SpatiumDDI.xcodeproj -scheme SpatiumDDI \
 
 The script only ever adds keys. A string missing from one build may just be
 behind code that build did not compile, and discarding a translator's work on
-that guess is not a trade worth making.
+that guess is not a trade worth making. It exits non-zero if it read nothing at
+all, because a run that silently rewrote the catalogue from no input is exactly
+the staleness it exists to prevent.
+
+It reads only the **app** target. String extraction is deliberately off for the
+test bundles: a literal in a test would otherwise be merged in and shipped to
+translators permanently, since nothing removes keys.
 
 ### What is already correct without translation
 

@@ -42,7 +42,7 @@ struct AlertsView: View {
                         ForEach(Severity.allCases, id: \.self) { severity in
                             let count = counts[severity] ?? 0
                             FilterChip(
-                                label: "\(severity.label) \(count)",
+                                label: "\(String(localized: severity.label)) \(count)",
                                 selected: severityFilter == severity
                             ) {
                                 severityFilter = severityFilter == severity ? nil : severity
@@ -70,8 +70,11 @@ struct AlertsView: View {
                     if events.isEmpty {
                         NoMatchesView(
                             query: "",
+                            // The label is used as written rather than
+                            // lower-cased: `lowercased()` is locale-unsafe, and
+                            // German capitalises nouns mid-sentence anyway.
                             filterDescription: severityFilter.map {
-                                "No \($0.label.lowercased()) alerts in this list."
+                                "No \($0.label) alerts in this list."
                             } ?? "No alert matches this filter."
                         )
                     } else {
@@ -125,7 +128,7 @@ private struct AlertRow: View {
                     .font(.subheadline.weight(.semibold))
                 Spacer()
                 if event.resolvedAt != nil {
-                    Badge(text: "resolved", tint: .green)
+                    Badge(localised: "resolved", tint: .green)
                 }
             }
             Text(event.message)

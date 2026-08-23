@@ -46,10 +46,11 @@ struct BrandLockup: View {
             HStack(spacing: 12) {
                 BrandMark(size: markSize)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Spatium")
+                    // A product name. Transliterating it would break the lockup.
+                    Text(verbatim: "Spatium")
                         .font(.system(size: nameSize, weight: .bold))
                         .tracking(-0.5)
-                    Text("DDI")
+                    Text(verbatim: "DDI")
                         .font(.system(size: suffixSize, weight: .regular))
                         // The wide tracking is the logo's, not decoration —
                         // it is what makes the lockup recognisable.
@@ -66,7 +67,12 @@ struct BrandLockup: View {
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(caption.map { "SpatiumDDI. \($0)" } ?? "SpatiumDDI")
+        // Built from the caption alone, with the product name prepended
+        // verbatim: the name is not a translation unit, and interpolating it
+        // into a localised label would make it one.
+        .accessibilityLabel(
+            Text(verbatim: "SpatiumDDI. ") + Text(caption ?? "")
+        )
     }
 }
 

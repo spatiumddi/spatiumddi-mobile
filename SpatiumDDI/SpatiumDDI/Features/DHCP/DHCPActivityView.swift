@@ -133,7 +133,9 @@ struct DHCPActivityView: View {
         if !typed.isEmpty {
             guard let canonical = ClientIdentifier.canonicalMAC(typed) else {
                 state = .failed(
-                    "\"\(typed)\" isn't a MAC address. Enter all twelve hex digits — separators are optional."
+                    .app(
+                        "\"\(typed)\" isn't a MAC address. Enter all twelve hex digits — separators are optional."
+                    )
                 )
                 return
             }

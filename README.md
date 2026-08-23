@@ -97,6 +97,11 @@ supplied credentials, a project-run relay, or both — are laid out in the issue
 Whichever wins has to stay default-off and send an opaque payload, because alert
 text names internal hostnames and subnets, and this app does not leak those.
 
+### Also queued
+
+- **[Several servers, switched between](https://github.com/spatiumddi/spatiumddi/issues/916)** — one control plane per client or per region, each with its own token and pinned certificate. Matters more once Phase 2 writes land: "which server am I on" stops being a convenience question and becomes the one that decides whether an approval hits the right estate.
+- **[Passcode-only devices](https://github.com/spatiumddi/spatiumddi-mobile/issues/5)** — the app currently refuses to store a token without enrolled biometrics, which makes it unusable on a device that only has a passcode, including MDM-managed fleets with biometrics disabled. Biometrics should be strongly recommended, not required.
+
 ### Phase 4 — Android
 
 Kotlin native vs. KMP vs. React Native is a Phase 4 call, decided then, on

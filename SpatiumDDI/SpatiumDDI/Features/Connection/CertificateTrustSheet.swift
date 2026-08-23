@@ -64,7 +64,7 @@ struct CertificateTrustSheet: View {
                     .padding(.vertical, 4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("SHA-256 fingerprint")
+                    .accessibilityLabel("SHA-256 Fingerprint")
                     .accessibilityValue(certificate.fingerprintHex)
                 }
 

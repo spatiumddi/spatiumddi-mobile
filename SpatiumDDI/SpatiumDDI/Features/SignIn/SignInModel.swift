@@ -18,7 +18,7 @@ final class SignInModel {
         case idle
         case validating
         case storing
-        case failed(String)
+        case failed(FailureMessage)
     }
 
     var tokenInput: String = ""
@@ -63,9 +63,14 @@ final class SignInModel {
         isScanning = false
 
         if let scanned = payload.address, scanned != address {
+            // One literal, not two joined with `+`. A concatenation is not a
+            // literal so it cannot be a localised resource at all — and a
+            // sentence split in half is unlocalisable regardless, because the
+            // halves do not stay in that order in every language.
             state = .failed(
-                "That code is for \(scanned.displayName), not \(address.displayName). "
-                    + "Go back and change server if you meant to connect there."
+                .app(
+                    "That code is for \(scanned.displayName), not \(address.displayName). Go back and change server if you meant to connect there."
+                )
             )
             return
         }
@@ -75,14 +80,15 @@ final class SignInModel {
             scanned != pinned
         {
             state = .failed(
-                "That code carries a different certificate fingerprint than the one you approved "
-                    + "for \(address.displayName). Do not continue until you know why."
+                .app(
+                    "That code carries a different certificate fingerprint than the one you approved for \(address.displayName). Do not continue until you know why."
+                )
             )
             return
         }
 
         guard let token = payload.token else {
-            state = .failed("That code didn't contain a token.")
+            state = .failed(.app("That code didn't contain a token."))
             return
         }
 

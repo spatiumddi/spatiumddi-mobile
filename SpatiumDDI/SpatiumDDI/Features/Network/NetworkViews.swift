@@ -37,8 +37,8 @@ struct VRFsView: View {
                             .lineLimit(2)
                         }
                         HStack(spacing: 8) {
-                            if let spaces = vrf.spaceCount { Text("\(spaces) spaces") }
-                            if let blocks = vrf.blockCount { Text("\(blocks) blocks") }
+                            if let spaces = vrf.spaceCount { Text("^[\(spaces) space](inflect: true)") }
+                            if let blocks = vrf.blockCount { Text("^[\(blocks) block](inflect: true)") }
                         }
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -269,7 +269,7 @@ struct ASNsView: View {
                             // Drift means the RDAP holder no longer matches what
                             // was recorded — an ASN changing hands under you.
                             if asn.whoisState.lowercased() == "drift" {
-                                Badge(text: "holder drift", tint: .red)
+                                Badge(localised: "holder drift", tint: .red)
                             }
                         }
                     }

@@ -161,13 +161,15 @@ struct ServerSetupView: View {
     }
 
     /// Reported, never acted on — the app does not retry into a change window.
-    private func maintenanceDetail(address: ServerAddress, retryAfter: TimeInterval?) -> String {
+    private func maintenanceDetail(address: ServerAddress, retryAfter: TimeInterval?)
+        -> LocalizedStringResource
+    {
         guard let retryAfter else { return "\(address.displayName) is in a change window." }
         let formatter = DateComponentsFormatter()
         formatter.unitsStyle = .full
         formatter.allowedUnits = [.hour, .minute, .second]
         formatter.maximumUnitCount = 2
-        let phrase = formatter.string(from: retryAfter) ?? "a while"
+        let phrase = formatter.string(from: retryAfter) ?? String(localized: "a while")
         return "\(address.displayName) · try again in \(phrase)."
     }
 }

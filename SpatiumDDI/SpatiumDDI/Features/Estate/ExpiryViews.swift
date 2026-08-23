@@ -47,11 +47,11 @@ struct DomainsView: View {
                                     if let registrar = domain.registrar, !registrar.isEmpty {
                                         Text(registrar).font(.caption).foregroundStyle(.secondary)
                                     }
-                                    if domain.dnssecSigned { Badge(text: "DNSSEC", tint: .green) }
+                                    if domain.dnssecSigned { Badge(localised: "DNSSEC", tint: .green) }
                                     // Drift means the registrar's nameservers no
                                     // longer match what this platform expects —
                                     // which is how a delegation quietly breaks.
-                                    if domain.nameserverDrift { Badge(text: "NS drift", tint: .red) }
+                                    if domain.nameserverDrift { Badge(localised: "NS drift", tint: .red) }
                                 }
                             }
                         }
@@ -186,9 +186,13 @@ struct CertificatesView: View {
                                 }
                                 HStack(spacing: 6) {
                                     Badge(text: target.state, tint: StateTint.forChangeRequest(target.state))
-                                    if target.selfSigned == true { Badge(text: "self-signed", tint: .orange) }
-                                    if target.chainValid == false { Badge(text: "chain invalid", tint: .red) }
-                                    if !target.enabled { Badge(text: "disabled") }
+                                    if target.selfSigned == true {
+                                        Badge(localised: "self-signed", tint: .orange)
+                                    }
+                                    if target.chainValid == false {
+                                        Badge(localised: "chain invalid", tint: .red)
+                                    }
+                                    if !target.enabled { Badge(localised: "disabled") }
                                 }
                             }
                         }
@@ -262,7 +266,7 @@ struct CertificateDetailView: View {
                     }
                 }
                 if let fingerprint = target.fingerprintSha256, !fingerprint.isEmpty {
-                    LabeledContent("SHA-256") {
+                    LabeledContent("SHA-256 Fingerprint") {
                         Text(fingerprint).font(.caption2.monospaced()).textSelection(.enabled)
                     }
                 }

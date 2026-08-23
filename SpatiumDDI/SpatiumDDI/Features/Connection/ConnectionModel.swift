@@ -14,7 +14,7 @@ final class ConnectionModel {
         case connecting
         case connected(ServerAddress, status: Int)
         case maintenance(ServerAddress, retryAfter: TimeInterval?)
-        case failed(String)
+        case failed(FailureMessage)
     }
 
     /// A certificate awaiting the operator's judgement.
@@ -59,7 +59,9 @@ final class ConnectionModel {
             // is nothing here for it to configure.
             scanNotice = nil
             state = .failed(
-                "That code carries a token but no server address. Enter the address, then scan it again on the next screen."
+                .app(
+                    "That code carries a token but no server address. Enter the address, then scan it again on the next screen."
+                )
             )
             return
         }
@@ -129,7 +131,7 @@ final class ConnectionModel {
         do {
             address = try ServerAddress.parse(addressInput)
         } catch {
-            state = .failed(error.localizedDescription)
+            state = .failed(.server(error.localizedDescription))
             return
         }
 
@@ -146,7 +148,7 @@ final class ConnectionModel {
         do {
             try trustStore.pin(pending.certificate.fingerprint, for: pending.address)
         } catch {
-            state = .failed("Couldn't save the trust decision. \(error.localizedDescription)")
+            state = .failed(.app("Couldn't save the trust decision. \(error.localizedDescription)"))
             return
         }
 
@@ -156,7 +158,7 @@ final class ConnectionModel {
 
     func declinePendingTrust() {
         pendingTrust = nil
-        state = .failed("Connection refused — the server's certificate wasn't trusted.")
+        state = .failed(.app("Connection refused — the server's certificate wasn't trusted."))
     }
 
     /// Drops a previously approved certificate, so the next connection re-asks.
@@ -179,7 +181,7 @@ final class ConnectionModel {
                 matchesScannedCode: expectedFingerprint.map { $0 == certificate.fingerprint }
             )
         case .failed(let error):
-            state = .failed(error.localizedDescription)
+            state = .failed(.server(error.localizedDescription))
         }
     }
 }

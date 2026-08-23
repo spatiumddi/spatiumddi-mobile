@@ -20,7 +20,8 @@ nonisolated enum Severity: String, CaseIterable, Comparable, Sendable {
         self = Severity(rawValue: apiValue.lowercased()) ?? .warning
     }
 
-    var label: String {
+    /// This app's word for the severity, not the server's raw value.
+    var label: LocalizedStringResource {
         switch self {
         case .critical: "Critical"
         case .warning: "Warning"
@@ -57,12 +58,32 @@ nonisolated enum Severity: String, CaseIterable, Comparable, Sendable {
 }
 
 /// A small filled capsule carrying a severity or status word.
+///
+/// The text is rendered verbatim. Most badges carry a value the control plane
+/// chose — a zone type, a lease state, a driver name — and those are data, not
+/// this app's wording: translating them would misreport what the server said,
+/// and looking them up in the catalogue could substitute unrelated chrome.
+/// Badges showing this app's own words use `Badge(localised:)`.
 struct Badge: View {
     let text: String
     var tint: Color = .secondary
 
+    /// This app's own wording, translated before display.
+    init(localised: LocalizedStringResource, tint: Color = .secondary) {
+        self.text = String(localized: localised)
+        self.tint = tint
+    }
+
+    /// A value the server chose, shown exactly as it arrived.
+    init(text: String, tint: Color = .secondary) {
+        self.text = text
+        self.tint = tint
+    }
+
     var body: some View {
-        Text(text.uppercased())
+        // `uppercased()` without a locale uses the generic mapping, which is
+        // wrong for Turkish dotted/dotless i among others.
+        Text(verbatim: text.uppercased(with: .current))
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -94,7 +115,8 @@ struct StatusLabel: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(tint).frame(width: 7, height: 7)
-            Text(status.capitalized).font(.caption)
+            // The server's status vocabulary, shown as sent.
+            Text(verbatim: status.capitalized(with: .current)).font(.caption)
         }
         .foregroundStyle(tint == .secondary ? Color.secondary : tint)
     }

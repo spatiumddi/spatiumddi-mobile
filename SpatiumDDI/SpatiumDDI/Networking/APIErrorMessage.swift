@@ -15,24 +15,28 @@ import OpenAPIRuntime
 nonisolated enum APIErrorMessage {
     /// The message for a status the call site caught, preferring what the
     /// server actually said over this app's generic wording.
-    static func describe(_ error: APIStatusError) -> LocalizedStringResource {
+    static func describe(_ error: APIStatusError) -> FailureMessage {
         // A disabled feature module is a 404 that means something specific and
         // benign. The generic 404 text — "it may have been deleted" — would
         // tell an operator their data is gone, which is both wrong and the kind
         // of wrong that starts an incident.
         if let module = error.disabledFeatureModule {
-            return
+            return .app(
                 "The \(module) feature module is switched off on this server, so there's nothing here to show."
+            )
         }
         if let detail = error.detail, error.status == 404 || error.status == 403 {
-            // The server's own words, passed through. Not translatable here —
-            // it is data, and inventing a key for it would be a lie.
-            return LocalizedStringResource(stringLiteral: detail)
+            // The server's own words, and untrusted input. `.server` renders
+            // them verbatim: no Markdown parsing, so a `detail` carrying a
+            // link cannot become a tappable one, and no catalogue lookup, so a
+            // detail that collides with one of this app's own keys cannot
+            // render as unrelated chrome.
+            return .server(detail)
         }
         return describe(status: error.status)
     }
 
-    static func describe(_ error: any Error) -> LocalizedStringResource {
+    static func describe(_ error: any Error) -> FailureMessage {
         if let status = error as? APIStatusError { return describe(status) }
 
         // Cancellation is never news. It reached a screen once — as
@@ -41,7 +45,7 @@ nonisolated enum APIErrorMessage {
         // catch. Callers should route through `LoadState.fetching`, which folds
         // cancellation into `.idle`, but this is the backstop: raw Swift error
         // text is never something to show an operator.
-        if error is CancellationError { return "The request was cancelled." }
+        if error is CancellationError { return .app("The request was cancelled.") }
         if let client = error as? ClientError {
             if let status = (client.response)?.status.code {
                 return describe(status: status)
@@ -57,46 +61,48 @@ nonisolated enum APIErrorMessage {
     /// `ClientError`, for any status the document doesn't declare — and this
     /// document declares only 200 and 422. A 401, 403 or 503 therefore arrives
     /// as `Output.undocumented(statusCode:)`, and only the call site can see it.
-    static func describe(status: Int) -> LocalizedStringResource {
+    static func describe(status: Int) -> FailureMessage {
         switch status {
         case 401:
-            "Your session is no longer valid. Sign in again."
+            .app("Your session is no longer valid. Sign in again.")
         case 403:
-            "You don't have permission to read this. Ask an administrator to review your role."
+            .app("You don't have permission to read this. Ask an administrator to review your role.")
         case 404:
-            "The server doesn't have this any more — it may have been deleted."
+            .app("The server doesn't have this any more — it may have been deleted.")
         case 422:
-            "The server rejected that request as invalid."
+            .app("The server rejected that request as invalid.")
         case 429:
-            "The server is rate-limiting requests. Wait a moment and try again."
+            .app("The server is rate-limiting requests. Wait a moment and try again.")
         case 503:
-            "The server is in a change window. Try again once it's finished."
+            .app("The server is in a change window. Try again once it's finished.")
         case 500...599:
-            "The server reported an error (HTTP \(status))."
+            .app("The server reported an error (HTTP \(status)).")
         default:
-            "Unexpected response from the server (HTTP \(status))."
+            .app("Unexpected response from the server (HTTP \(status)).")
         }
     }
 
-    private static func describeTransport(_ error: any Error) -> LocalizedStringResource {
+    private static func describeTransport(_ error: any Error) -> FailureMessage {
         let nsError = error as NSError
+        // Foundation has already localised this, so re-keying it would look it
+        // up a second time in a catalogue that does not contain it.
         guard nsError.domain == NSURLErrorDomain else {
-            return LocalizedStringResource(stringLiteral: error.localizedDescription)
+            return .server(error.localizedDescription)
         }
         switch nsError.code {
         case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
-            return "Can't reach the server — check this device's network."
+            return .app("Can't reach the server — check this device's network.")
         case NSURLErrorTimedOut:
-            return "The server didn't respond in time."
+            return .app("The server didn't respond in time.")
         case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
-            return "This device has no network connection."
+            return .app("This device has no network connection.")
         case NSURLErrorCancelled:
             // Normally intercepted by the task-cancellation check before it can
             // reach a screen; this is for the case where the session itself was
             // invalidated under an in-flight request.
-            return "The request was cancelled."
+            return .app("The request was cancelled.")
         default:
-            return LocalizedStringResource(stringLiteral: error.localizedDescription)
+            return .server(error.localizedDescription)
         }
     }
 }

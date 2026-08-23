@@ -124,7 +124,7 @@ struct SignedInView: View {
                             HStack(spacing: 10) {
                                 BrandMark(size: 30)
                                 VStack(alignment: .leading, spacing: 0) {
-                                    Text("SpatiumDDI").font(.headline)
+                                    Text(verbatim: "SpatiumDDI").font(.headline)
                                     Text(session.address.displayName)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)

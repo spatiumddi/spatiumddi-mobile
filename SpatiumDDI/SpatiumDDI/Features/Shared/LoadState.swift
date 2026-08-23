@@ -14,19 +14,19 @@ enum LoadState<Value> {
     case idle
     case loading
     case loaded(Value)
-    /// Why it failed, as something that can be translated.
+    /// Why it failed.
     ///
-    /// `LocalizedStringResource` rather than `String` because a `String` handed
-    /// to `Text` is rendered verbatim — it never reaches the string catalogue.
-    /// Failure messages are the text an operator most needs to understand, so
-    /// they are exactly the wrong thing to leave untranslatable.
-    case failed(LocalizedStringResource)
+    /// A `FailureMessage` rather than a `String`, because the two kinds of
+    /// failure text need opposite handling: this app's own wording must reach
+    /// the string catalogue, and the control plane's must never be parsed or
+    /// looked up.
+    case failed(FailureMessage)
 }
 
 /// Renders the four states of a fetch consistently.
 struct LoadStateView<Value, Content: View>: View {
     let state: LoadState<Value>
-    let emptyMessage: String
+    let emptyMessage: LocalizedStringResource
     let retry: () -> Void
     @ViewBuilder let content: (Value) -> Content
 
@@ -60,12 +60,8 @@ struct LoadStateView<Value, Content: View>: View {
 
         case .failed(let message):
             VStack(alignment: .leading, spacing: 12) {
-                Label {
-                    Text(message)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                }
-                .foregroundStyle(.red)
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
                 Button("Try Again", action: retry)
             }
             .listRowSeparator(.hidden)
@@ -107,7 +103,7 @@ struct UtilisationBar: View {
 struct NoMatchesView: View {
     /// What the operator typed. Empty means only a non-text filter is narrowing.
     let query: String
-    let filterDescription: String
+    let filterDescription: LocalizedStringResource
 
     var body: some View {
         if query.isEmpty {

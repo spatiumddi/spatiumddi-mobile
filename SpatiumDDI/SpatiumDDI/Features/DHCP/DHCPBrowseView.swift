@@ -50,7 +50,7 @@ struct DHCPBrowseView: View {
                                 Text(group.name)
                                 HStack(spacing: 6) {
                                     Badge(text: group.mode, tint: .teal)
-                                    if group.autoFailover { Badge(text: "auto-failover") }
+                                    if group.autoFailover { Badge(localised: "auto-failover") }
                                     if let members = group.keaMemberCount {
                                         Text("^[\(members) member](inflect: true)")
                                             .font(.caption2).foregroundStyle(.secondary)
@@ -122,8 +122,8 @@ private struct DHCPServerRow: View {
             HStack(spacing: 6) {
                 Badge(text: server.driver, tint: .teal)
                 if let ha = server.haState, !ha.isEmpty { Badge(text: "HA \(ha)") }
-                if server.maintenanceMode == true { Badge(text: "maintenance", tint: .orange) }
-                if server.isReadOnly { Badge(text: "read-only") }
+                if server.maintenanceMode == true { Badge(localised: "maintenance", tint: .orange) }
+                if server.isReadOnly { Badge(localised: "read-only") }
             }
         }
     }
@@ -227,7 +227,7 @@ struct DHCPServerDetailView: View {
         }
         .navigationTitle(server.name)
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, prompt: "Filter by IP, MAC or hostname")
+        .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
         .refreshable { await refresh() }
         .task { if case .idle = stats { await refresh() } }
     }
@@ -362,7 +362,7 @@ struct DHCPScopesView: View {
                             HStack {
                                 Text(scope.name ?? "Unnamed scope")
                                 Spacer()
-                                if !scope.enabled { Badge(text: "disabled", tint: .orange) }
+                                if !scope.enabled { Badge(localised: "disabled", tint: .orange) }
                             }
                             if let description = scope.description, !description.isEmpty {
                                 Text(description).font(.caption).foregroundStyle(.secondary)
@@ -371,7 +371,7 @@ struct DHCPScopesView: View {
                                 Badge(text: scope.addressFamily ?? "ipv4", tint: .teal)
                                 Text("lease \(Duration.seconds(scope.leaseTime).formattedCompact)")
                                     .font(.caption2).foregroundStyle(.secondary)
-                                if scope.ddnsEnabled { Badge(text: "DDNS", tint: .green) }
+                                if scope.ddnsEnabled { Badge(localised: "DDNS", tint: .green) }
                             }
                         }
                     }

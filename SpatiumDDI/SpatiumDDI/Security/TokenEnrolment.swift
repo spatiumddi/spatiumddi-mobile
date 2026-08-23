@@ -17,7 +17,7 @@ nonisolated struct TokenEnrolment {
         /// Accepted by the server and written to the Keychain behind biometry.
         case enrolled
         /// Refused, with something the operator can act on.
-        case failed(String)
+        case failed(FailureMessage)
     }
 
     var probe: ControlPlaneProbe = ControlPlaneProbe()
@@ -33,12 +33,14 @@ nonisolated struct TokenEnrolment {
 
     func enrol(_ rawToken: String, for address: ServerAddress) async -> Outcome {
         let token = rawToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !token.isEmpty else { return .failed("No token to sign in with.") }
+        guard !token.isEmpty else { return .failed(.app("No token to sign in with.")) }
 
         // Refuse before writing anything that could not be protected properly.
         // Checked here as well as in the store because the message an operator
         // needs is "set up Face ID", not a Keychain error code.
-        if let reason = biometryUnavailableReason { return .failed(reason) }
+        // Foundation already localised this LAError text, so it goes through
+        // verbatim rather than being re-keyed against this app's catalogue.
+        if let reason = biometryUnavailableReason { return .failed(.server(reason)) }
 
         switch await probe.validateToken(token, for: address) {
         case .authenticated, .forbidden:
@@ -49,22 +51,26 @@ nonisolated struct TokenEnrolment {
                 try tokens.save(token, for: address)
                 return .enrolled
             } catch {
-                return .failed(error.localizedDescription)
+                return .failed(.server(error.localizedDescription))
             }
 
         case .rejected:
-            return .failed("The server rejected that token. Check it hasn't been revoked or expired.")
+            return .failed(
+                .app("The server rejected that token. Check it hasn't been revoked or expired.")
+            )
 
         case .maintenance:
             return .failed(
-                "\(address.displayName) is in a change window. Try again once it's finished."
+                .app("\(address.displayName) is in a change window. Try again once it's finished.")
             )
 
         case .trustRequired:
-            return .failed("The server's certificate changed since you connected. Reconnect to review it.")
+            return .failed(
+                .app("The server's certificate changed since you connected. Reconnect to review it.")
+            )
 
         case .failed(let error):
-            return .failed(error.localizedDescription)
+            return .failed(.server(error.localizedDescription))
         }
     }
 }

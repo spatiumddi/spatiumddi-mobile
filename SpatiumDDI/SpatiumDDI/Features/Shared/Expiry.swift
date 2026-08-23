@@ -42,7 +42,8 @@ nonisolated enum Expiry: Sendable {
         }
     }
 
-    var label: String {
+    /// This app's wording, not the server's — so it is translatable.
+    var label: LocalizedStringResource {
         switch self {
         case .expired: "Expired"
         case .critical(let days): days == 0 ? "Expires today" : "\(days)d left"
@@ -67,10 +68,11 @@ struct ExpiryBadge: View {
 
     var body: some View {
         let expiry = Expiry(date)
-        Badge(text: expiry.label, tint: expiry.tint)
+        Badge(localised: expiry.label, tint: expiry.tint)
             .accessibilityLabel(
-                date.map { "\(expiry.label), \($0.formatted(date: .abbreviated, time: .omitted))" }
-                    ?? expiry.label
+                date.map {
+                    Text("\(expiry.label), \($0.formatted(date: .abbreviated, time: .omitted))")
+                } ?? Text(expiry.label)
             )
     }
 }
