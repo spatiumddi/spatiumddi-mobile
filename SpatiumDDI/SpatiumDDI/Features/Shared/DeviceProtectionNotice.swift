@@ -79,7 +79,10 @@ extension KeychainProtection {
     }
 
     /// The trade-off, where there is one worth restating.
-    var caveat: LocalizedStringResource? {
+    ///
+    /// `nonisolated`, like `FailureMessage.englishText`: a pure value read the
+    /// tests exercise from nonisolated contexts.
+    nonisolated var caveat: LocalizedStringResource? {
         switch self {
         case .biometrics: nil
         case .passcode:

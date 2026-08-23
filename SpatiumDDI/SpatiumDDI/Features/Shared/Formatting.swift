@@ -12,7 +12,7 @@ extension Duration {
     /// how a zone file or a Kea config spells a lease. Falling back to plain
     /// seconds for anything that is not a whole unit keeps the value exact —
     /// rounding a 90-second TTL to "2m" would misreport the record.
-    var formattedCompact: String {
+    nonisolated var formattedCompact: String {
         let total = components.seconds
         guard total > 0 else { return "\(total)s" }
         switch total {

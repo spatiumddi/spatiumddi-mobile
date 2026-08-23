@@ -52,7 +52,11 @@ extension FailureMessage {
     /// turn behaviour assertions into language assertions — a test for "does a
     /// 403 explain itself" would start failing the day someone adds a French
     /// translation, on entirely correct code.
-    var englishText: String {
+    ///
+    /// `nonisolated` because it touches only value types, and tests read it
+    /// from nonisolated Swift Testing contexts — which newer compilers reject
+    /// against the default MainActor isolation this target builds with.
+    nonisolated var englishText: String {
         switch self {
         case .app(let resource):
             var copy = resource

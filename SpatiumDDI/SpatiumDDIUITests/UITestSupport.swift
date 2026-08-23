@@ -26,12 +26,17 @@ extension XCTestCase {
             app.buttons["Sign Out"].tap()
         }
 
-        // Signed in: Sign Out lives on the Server tab.
-        let serverTab = app.tabBars.buttons["Server"]
-        if serverTab.waitForExistence(timeout: 2) {
-            serverTab.tap()
-            if app.buttons["Sign Out"].waitForExistence(timeout: 3) {
-                app.buttons["Sign Out"].tap()
+        // Signed in: the app lands on the sidebar menu, and Sign Out lives on
+        // its Server section — which sits low enough in the list that the lazy
+        // List may not have materialised the row until it is scrolled to.
+        if app.navigationBars["Menu"].waitForExistence(timeout: 2) {
+            let serverRow = app.cells.staticTexts["Server"]
+            if !serverRow.exists { app.swipeUp() }
+            if serverRow.waitForExistence(timeout: 3) {
+                serverRow.tap()
+                let signOut = app.buttons["Sign Out"]
+                if !signOut.waitForExistence(timeout: 3) { app.swipeUp() }
+                if signOut.waitForExistence(timeout: 3) { signOut.tap() }
             }
         }
 
