@@ -45,15 +45,15 @@ platform, the API and the roadmap all live in
 |---|---|
 | **Overview** | Platform health per component, maintenance/demo banners, server version and update check, unresolved alerts by severity, estate counts, and a size-weighted utilisation figure with the busiest subnets |
 | **Alerts** | Every alert event, most-severe first, filterable by severity and unresolved-only |
-| **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, MAC and hostname on each address |
+| **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it |
 | **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring |
 | **DHCP** | Server health and HA state, a live ACK/NAK traffic chart, leases with fingerprinted device class, and scopes with their pools and reservations |
 | **Search** | Global search across 16 resource types, grouped by kind, ranked server-side |
 | **Connect** | HTTPS-only, with an explicit certificate-trust flow for the private CAs self-hosted installs actually use |
 | **Sign in** | Per-device `sddi_` API token, by paste or by scanning the enrolment QR code, stored in the Keychain behind Face ID / Touch ID |
 
-Built for iPhone and iPad — the same tab declaration becomes a sidebar on the
-larger screen.
+Navigation is a grouped sidebar — **Monitor / Estate / Tools** — which is a real
+sidebar on iPad and collapses to a pushed list on iPhone.
 
 ## Roadmap
 
@@ -132,7 +132,9 @@ Build and run. Then, in the app:
    **API Tokens**, then either paste it or scan the enrolment QR code.
 
 For working on the app itself — the stub control plane, the test tiers, how to
-re-pin the API client — see **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
+re-pin the API client — see **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**. For
+getting a build onto a phone, including what TestFlight requires, see
+**[docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)**.
 
 ## Self-hosted reality
 
