@@ -16,9 +16,21 @@ import Foundation
 nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Sendable {
     case overview
     case alerts
+    case changeRequests
+    case newDevices
     case ipam
     case dns
     case dhcp
+    case domains
+    case certificates
+    case vlans
+    case vrfs
+    case circuits
+    case asns
+    case ownership
+    case access
+    case audit
+    case trash
     case search
     case server
 
@@ -28,9 +40,21 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         switch self {
         case .overview: "Overview"
         case .alerts: "Alerts"
+        case .changeRequests: "Change Requests"
+        case .newDevices: "New Devices"
         case .ipam: "IPAM"
         case .dns: "DNS"
         case .dhcp: "DHCP"
+        case .domains: "Domains"
+        case .certificates: "Certificates"
+        case .vlans: "VLANs"
+        case .vrfs: "VRFs"
+        case .circuits: "Circuits"
+        case .asns: "ASNs"
+        case .ownership: "Ownership"
+        case .access: "Access"
+        case .audit: "Audit Log"
+        case .trash: "Trash"
         case .search: "Search"
         case .server: "Server"
         }
@@ -40,11 +64,45 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         switch self {
         case .overview: "gauge.with.dots.needle.33percent"
         case .alerts: "bell"
+        case .changeRequests: "checkmark.seal"
+        case .newDevices: "sensor.tag.radiowaves.forward"
         case .ipam: "square.grid.3x3"
         case .dns: "globe"
         case .dhcp: "arrow.left.arrow.right"
+        case .domains: "at"
+        case .certificates: "lock.shield"
+        case .vlans: "point.3.connected.trianglepath.dotted"
+        case .vrfs: "arrow.triangle.branch"
+        case .circuits: "cable.connector"
+        case .asns: "number"
+        case .ownership: "building.2"
+        case .access: "person.2.badge.key"
+        case .audit: "list.bullet.rectangle"
+        case .trash: "trash"
         case .search: "magnifyingglass"
         case .server: "gear"
+        }
+    }
+
+    /// The optional platform module this section needs, if any.
+    ///
+    /// A control plane with the module switched off answers 404 from every one
+    /// of that section's endpoints, so the section is hidden rather than
+    /// offered as a screen that can only ever report being unavailable. Core
+    /// DDI — IPAM, DNS, DHCP, alerts, search — is not togglable and so is not
+    /// gated here.
+    var featureModule: String? {
+        switch self {
+        case .changeRequests: "governance.approvals"
+        case .newDevices: "security.new_device_watch"
+        case .domains: "network.domain"
+        case .certificates: "security.tls_certs"
+        case .vlans: "network.vlan"
+        case .vrfs: "network.vrf"
+        case .circuits: "network.circuit"
+        case .asns: "network.asn"
+        case .ownership: "network.customer"
+        default: nil
         }
     }
 
@@ -53,14 +111,18 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
     enum Group: String, CaseIterable, Identifiable {
         case monitor = "Monitor"
         case estate = "Estate"
+        case network = "Network"
+        case administration = "Administration"
         case tools = "Tools"
 
         var id: Self { self }
 
         var sections: [AppSection] {
             switch self {
-            case .monitor: [.overview, .alerts]
-            case .estate: [.ipam, .dns, .dhcp]
+            case .monitor: [.overview, .alerts, .changeRequests, .newDevices]
+            case .estate: [.ipam, .dns, .dhcp, .domains, .certificates]
+            case .network: [.vlans, .vrfs, .circuits, .asns]
+            case .administration: [.ownership, .access, .audit, .trash]
             case .tools: [.search, .server]
             }
         }

@@ -85,8 +85,8 @@ struct DHCPBrowseView: View {
                 return try ok.body.json.sorted {
                     $0.name.localizedStandardCompare($1.name) == .orderedAscending
                 }
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -99,8 +99,8 @@ struct DHCPBrowseView: View {
                 return try ok.body.json.sorted {
                     $0.name.localizedStandardCompare($1.name) == .orderedAscending
                 }
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -248,8 +248,8 @@ struct DHCPServerDetailView: View {
                 return try ok.body.json
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -269,8 +269,8 @@ struct DHCPServerDetailView: View {
                 return page.items
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -398,8 +398,8 @@ struct DHCPScopesView: View {
                 }
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -520,8 +520,8 @@ struct DHCPScopeDetailView: View {
                 return try ok.body.json
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -538,8 +538,8 @@ struct DHCPScopeDetailView: View {
                 }
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }

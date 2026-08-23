@@ -60,8 +60,8 @@ struct DNSBrowseView: View {
                 return try ok.body.json.sorted {
                     $0.name.localizedStandardCompare($1.name) == .orderedAscending
                 }
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -123,8 +123,8 @@ struct DNSZonesView: View {
                 }
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -278,8 +278,8 @@ struct DNSZoneDetailView: View {
                 }
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }

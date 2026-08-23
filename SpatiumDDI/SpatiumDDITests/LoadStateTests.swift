@@ -85,3 +85,52 @@ struct LoadStateTests {
         #expect(message.contains("didn't respond"))
     }
 }
+
+@Suite("Feature-module errors")
+struct FeatureModuleErrorTests {
+    /// The platform answers 404 from every endpoint of a disabled module, with
+    /// the module named in the body. Reporting the generic 404 message —
+    /// "it may have been deleted" — tells an operator their data is gone, which
+    /// is both wrong and the kind of wrong that starts an incident.
+    @Test(
+        "A disabled module is named, not reported as a deletion",
+        arguments: [
+            ("Feature 'network.vrf' is disabled.", "network.vrf"),
+            ("Feature 'governance.approvals' is disabled.", "governance.approvals"),
+            ("Feature 'security.tls_certs' is disabled.", "security.tls_certs"),
+        ]
+    )
+    func namesTheModule(detail: String, module: String) {
+        let error = APIStatusError(status: 404, detail: detail)
+        #expect(error.disabledFeatureModule == module)
+
+        let message = APIErrorMessage.describe(error)
+        #expect(message.contains(module))
+        #expect(!message.contains("deleted"), "a disabled module is not a deletion")
+    }
+
+    @Test("A genuine 404 still reads as one")
+    func genuineNotFound() {
+        let error = APIStatusError(status: 404, detail: "Not Found")
+        #expect(error.disabledFeatureModule == nil)
+        #expect(APIErrorMessage.describe(error).contains("Not Found"))
+    }
+
+    @Test("A 404 with no body falls back to the generic wording")
+    func bodilessNotFound() {
+        let error = APIStatusError(status: 404)
+        #expect(error.disabledFeatureModule == nil)
+        #expect(APIErrorMessage.describe(error).contains("deleted"))
+    }
+
+    // The gate fails open: a non-admin cannot read /admin/feature-modules, and
+    // hiding half the app because a permission check failed would be worse than
+    // letting each screen report its own 404.
+    @Test("An unknown module list hides nothing")
+    @MainActor
+    func unknownListHidesNothing() {
+        let modules = FeatureModules()
+        #expect(modules.isAvailable("network.vrf"))
+        #expect(modules.isAvailable(nil))
+    }
+}

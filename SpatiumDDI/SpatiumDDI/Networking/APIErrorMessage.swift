@@ -13,7 +13,25 @@ import OpenAPIRuntime
 /// #5: a 503 is a change window, not a network failure, and is never retried
 /// into automatically.
 nonisolated enum APIErrorMessage {
+    /// The message for a status the call site caught, preferring what the
+    /// server actually said over this app's generic wording.
+    static func describe(_ error: APIStatusError) -> String {
+        // A disabled feature module is a 404 that means something specific and
+        // benign. The generic 404 text — "it may have been deleted" — would
+        // tell an operator their data is gone, which is both wrong and the kind
+        // of wrong that starts an incident.
+        if let module = error.disabledFeatureModule {
+            return
+                "The \(module) feature module is switched off on this server, so there's nothing here to show."
+        }
+        if let detail = error.detail, error.status == 404 || error.status == 403 {
+            return detail
+        }
+        return describe(status: error.status)
+    }
+
     static func describe(_ error: any Error) -> String {
+        if let status = error as? APIStatusError { return describe(status) }
         if let client = error as? ClientError {
             if let status = (client.response)?.status.code {
                 return describe(status: status)

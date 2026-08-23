@@ -95,6 +95,7 @@ struct SignedInView: View {
     /// Which section the sidebar has selected. Optional because a collapsed
     /// split view starts with nothing pushed.
     @State private var section: AppSection? = .overview
+    @State private var features = FeatureModules()
 
     var body: some View {
         Group {
@@ -102,9 +103,16 @@ struct SignedInView: View {
                 NavigationSplitView {
                     List(selection: $section) {
                         ForEach(AppSection.Group.allCases) { group in
-                            Section(group.rawValue) {
-                                ForEach(group.sections) { item in
-                                    Label(item.title, systemImage: item.symbol).tag(item)
+                            let available = group.sections.filter {
+                                features.isAvailable($0.featureModule)
+                            }
+                            // A group whose every section is switched off is
+                            // not rendered as an empty heading.
+                            if !available.isEmpty {
+                                Section(group.rawValue) {
+                                    ForEach(available) { item in
+                                        Label(item.title, systemImage: item.symbol).tag(item)
+                                    }
                                 }
                             }
                         }
@@ -125,10 +133,14 @@ struct SignedInView: View {
         }
         .task(id: token) {
             session?.invalidate()
-            session = ControlPlaneSession(address: address, token: token) {
+            let created = ControlPlaneSession(address: address, token: token) {
                 // The middleware runs on whatever queue the response arrived on.
                 Task { @MainActor in onSessionRejected() }
             }
+            session = created
+            // Read once per session, before the sidebar settles. Failing here
+            // leaves everything visible rather than hiding the app.
+            await features.load(from: created)
         }
         .onDisappear {
             session?.invalidate()
@@ -143,12 +155,36 @@ struct SignedInView: View {
             OverviewView(session: session)
         case .alerts:
             AlertsView(session: session)
+        case .changeRequests:
+            ChangeRequestsView(session: session)
+        case .newDevices:
+            NewDevicesView(session: session)
         case .ipam:
             IPAMBrowseView(session: session)
         case .dns:
             DNSBrowseView(session: session)
         case .dhcp:
             DHCPBrowseView(session: session)
+        case .domains:
+            DomainsView(session: session)
+        case .certificates:
+            CertificatesView(session: session)
+        case .vlans:
+            VLANRoutersView(session: session)
+        case .vrfs:
+            VRFsView(session: session)
+        case .circuits:
+            CircuitsView(session: session)
+        case .asns:
+            ASNsView(session: session)
+        case .ownership:
+            OwnershipView(session: session)
+        case .access:
+            AccessView(session: session)
+        case .audit:
+            AuditLogView(session: session)
+        case .trash:
+            TrashView(session: session)
         case .search:
             SearchView(session: session)
         case .server:
@@ -263,7 +299,8 @@ struct ServerDetailView: View {
         identity = await LoadState.fetching {
             switch try await session.client.getMeApiV1AuthMeGet() {
             case .ok(let ok): return try ok.body.json
-            case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -273,7 +310,8 @@ struct ServerDetailView: View {
         permissions = await LoadState.fetching {
             switch try await session.client.getMyPermissionsApiV1AuthMePermissionsGet() {
             case .ok(let ok): return try ok.body.json
-            case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }

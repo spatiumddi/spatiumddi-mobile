@@ -184,8 +184,8 @@ final class OverviewModel {
                     throw APIStatusError(status: 500)
                 }
                 return parsed
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -196,8 +196,8 @@ final class OverviewModel {
             switch try await session.client.getVersionApiV1VersionGet() {
             case .ok(let ok):
                 return try ok.body.json
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -213,8 +213,8 @@ final class OverviewModel {
                 return try ok.body.json
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
@@ -233,7 +233,8 @@ final class OverviewModel {
         switch try await session.client.listSpacesApiV1IpamSpacesGet() {
         case .ok(let ok): return try ok.body.json.count
         case .unprocessableContent: throw APIStatusError(status: 422)
-        case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+        case .undocumented(let statusCode, let payload):
+            throw await APIStatusError(status: statusCode, payload: payload)
         }
     }
 
@@ -241,7 +242,8 @@ final class OverviewModel {
         switch try await session.client.listBlocksApiV1IpamBlocksGet() {
         case .ok(let ok): return try ok.body.json.count
         case .unprocessableContent: throw APIStatusError(status: 422)
-        case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+        case .undocumented(let statusCode, let payload):
+            throw await APIStatusError(status: statusCode, payload: payload)
         }
     }
 
@@ -257,7 +259,8 @@ final class OverviewModel {
         switch try await session.client.listSubnetsApiV1IpamSubnetsGet() {
         case .ok(let ok): return try ok.body.json
         case .unprocessableContent: throw APIStatusError(status: 422)
-        case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+        case .undocumented(let statusCode, let payload):
+            throw await APIStatusError(status: statusCode, payload: payload)
         }
     }
 
@@ -267,7 +270,8 @@ final class OverviewModel {
             let groups: [Components.Schemas.ServerGroupResponse]
             switch try await session.client.listGroupsApiV1DnsGroupsGet() {
             case .ok(let ok): groups = try ok.body.json
-            case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
 
             // Zones are per group, so the count costs one call per group; they
@@ -309,7 +313,8 @@ final class OverviewModel {
             let servers: [Components.Schemas.AppApiV1DhcpServersServerResponse]
             switch try await session.client.listServersApiV1DhcpServersGet() {
             case .ok(let ok): servers = try ok.body.json
-            case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
 
             // Active leases is per server. An unreachable server has no stats to

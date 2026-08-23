@@ -105,8 +105,8 @@ struct AlertsView: View {
                 }
             case .unprocessableContent:
                 throw APIStatusError(status: 422)
-            case .undocumented(let statusCode, _):
-                throw APIStatusError(status: statusCode)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
     }
