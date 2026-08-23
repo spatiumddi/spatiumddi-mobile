@@ -1,26 +1,45 @@
 # Generated API client configuration.
 #
-# PROVISIONAL: openapi.json here is a development snapshot pulled from a running
-# control plane, whose info.version reads "latest" rather than a CalVer. CLAUDE.md
-# requires a shipped client be generated from a pinned release asset — see
-# spatiumddi/spatiumddi#905, which adds that asset. Re-pin before release.
+# openapi.json is the release asset from spatiumddi 2026.08.22-1, committed
+# byte-for-byte so it can be verified against the published artefact:
+#
+#   gh release download 2026.08.22-1 --repo spatiumddi/spatiumddi --pattern openapi.json
+#   shasum -a 256 openapi.json
+#   # 3d18647cb4c86bc76e01c60e5342dd4d5c88ff10513b7b4d2d9d90f5ec5e78d6
+#
+# Re-pin deliberately, against a release — never against a live control plane's
+# /api/openapi.json, which tracks main and is not a contract anyone shipped.
 generate:
   - types
   - client
 accessModifier: public
 namingStrategy: idiomatic
 filter:
-  # Phase 1 is read-mostly. Generating all 841 paths would produce an enormous
-  # client for a handful of screens; this is the surface #884 Phase 1 names.
+  # Phase 1 is read-mostly. The document describes 842 paths; generating all of
+  # them produces an enormous client for a handful of screens. This is the
+  # surface #884 Phase 1 names, and nothing beyond it.
   paths:
+    # Platform state — version handshake and the health/maintenance banner.
     - /api/v1/version
+    - /health/platform
+
+    # Identity and client-side permission gating (UX only — see #4).
     - /api/v1/auth/me
     - /api/v1/auth/me/permissions
+
+    # Rollups. Only three exist server-side; the DDI figures the overview shows
+    # are counted from the resource endpoints below, not from a dashboard call.
     - /api/v1/dashboards/network/summary
     - /api/v1/dashboards/security/summary
+
+    # Global search.
     - /api/v1/search
     - /api/v1/search/types
+
+    # Alerts.
     - /api/v1/alerts/events
+
+    # IPAM: space → block → subnet → address.
     - /api/v1/ipam/spaces
     - /api/v1/ipam/spaces/{space_id}
     - /api/v1/ipam/blocks
@@ -29,10 +48,23 @@ filter:
     - /api/v1/ipam/subnets/{subnet_id}
     - /api/v1/ipam/subnets/{subnet_id}/addresses
     - /api/v1/ipam/addresses/{address_id}
+    - /api/v1/reports/top-subnets-by-utilization
+
+    # DNS: group → zone → record.
     - /api/v1/dns/groups
+    - /api/v1/dns/groups/{group_id}
+    - /api/v1/dns/groups/{group_id}/servers
     - /api/v1/dns/groups/{group_id}/zones
     - /api/v1/dns/groups/{group_id}/zones/{zone_id}
     - /api/v1/dns/groups/{group_id}/zones/{zone_id}/records
+
+    # DHCP: server + group → scope → pool / reservation / lease.
     - /api/v1/dhcp/servers
+    - /api/v1/dhcp/servers/{server_id}
     - /api/v1/dhcp/servers/{server_id}/leases
+    - /api/v1/dhcp/servers/{server_id}/stats
+    - /api/v1/dhcp/server-groups
+    - /api/v1/dhcp/server-groups/{group_id}/scopes
     - /api/v1/dhcp/scopes/{scope_id}
+    - /api/v1/dhcp/scopes/{scope_id}/pools
+    - /api/v1/dhcp/scopes/{scope_id}/statics
