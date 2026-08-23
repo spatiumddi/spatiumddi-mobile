@@ -214,6 +214,7 @@ struct SignedInView: View {
                 // trade on a screen big enough to show both.
                 .navigationSplitViewStyle(.balanced)
                 .environment(permissions)
+                .environment(features)
             } else {
                 ProgressView()
             }
@@ -285,8 +286,6 @@ struct SignedInView: View {
             TrashView(session: session)
         case .networkTools:
             NetworkToolsView(session: session)
-        case .nmap:
-            NmapView(session: session)
         case .search:
             SearchView(session: session)
         case .about:

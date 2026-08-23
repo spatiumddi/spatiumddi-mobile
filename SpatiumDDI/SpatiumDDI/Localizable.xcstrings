@@ -1621,6 +1621,9 @@
     "The server's certificate changed since you connected. Reconnect to review it." : {
       "extractionState" : "extracted_with_value"
     },
+    "The stored token could not be unsealed. It is still on this device — try again, or sign out to replace it." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The token is stored in the Keychain and unlocked with %@. It never leaves this device except as an Authorization header to %@." : {
       "extractionState" : "extracted_with_value"
     },

@@ -20,6 +20,10 @@ import SwiftUI
 struct NetworkToolsView: View {
     let session: ControlPlaneSession
 
+    /// Nmap is its own platform module, switched on separately from the rest
+    /// of the tools — so its row is gated here rather than the whole section.
+    @Environment(FeatureModules.self) private var features
+
     var body: some View {
         List {
             Section {
@@ -34,6 +38,11 @@ struct NetworkToolsView: View {
                 }
                 link("Port Test", "powerplug") {
                     PortTestToolView(session: session)
+                }
+                if features.isAvailable("tools.nmap") {
+                    link("Nmap", "dot.radiowaves.left.and.right") {
+                        NmapView(session: session)
+                    }
                 }
             } header: {
                 Text("Reachability")

@@ -34,7 +34,6 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
     case audit
     case trash
     case networkTools
-    case nmap
     case search
     case server
     case about
@@ -63,7 +62,6 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .audit: "Audit Log"
         case .trash: "Trash"
         case .networkTools: "Network Tools"
-        case .nmap: "Nmap"
         case .search: "Search"
         case .server: "Server"
         case .about: "About"
@@ -92,7 +90,6 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .audit: "list.bullet.rectangle"
         case .trash: "trash"
         case .networkTools: "stethoscope"
-        case .nmap: "dot.radiowaves.left.and.right"
         case .search: "magnifyingglass"
         case .server: "gear"
         case .about: "info.circle"
@@ -121,7 +118,6 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .asns: "network.asn"
         case .ownership: "network.customer"
         case .networkTools: "tools.network"
-        case .nmap: "tools.nmap"
         default: nil
         }
     }
@@ -143,7 +139,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
             case .estate: [.ipam, .dns, .dhcp, .dhcpLog, .domains, .certificates]
             case .network: [.vlans, .vrfs, .circuits, .asns]
             case .administration: [.ownership, .access, .audit, .trash]
-            case .tools: [.networkTools, .nmap, .search, .server, .about]
+            case .tools: [.networkTools, .search, .server, .about]
             }
         }
     }

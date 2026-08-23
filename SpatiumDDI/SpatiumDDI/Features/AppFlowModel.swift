@@ -150,9 +150,32 @@ final class AppFlowModel {
         } catch TokenStore.StoreError.cancelled {
             stage = .locked(server, message: nil)
         } catch TokenStore.StoreError.notFound, TokenStore.StoreError.enrollmentChanged {
-            // The item is gone or was invalidated; signing in again is the fix.
-            try? tokens.delete(for: server.address)
-            stage = .signIn(server)
+            // **Never delete here.** `errSecItemNotFound` does not only mean
+            // "the item is gone": the Keychain says exactly the same thing when
+            // an item is present but its access control cannot be satisfied by
+            // the context presented — a biometric item asked for with a
+            // passcode-authenticated context, say. Deleting on that signal
+            // destroys a working credential over a failed *read*, and there is
+            // no way back from it but pasting the token in again.
+            //
+            // Nothing needs deleting for recovery either way: `save` clears any
+            // existing item before adding, because access control cannot be
+            // changed by an update. So the only thing that delete ever achieved
+            // here was the data loss.
+            if tokens.hasToken(for: server.address) {
+                // Still there, so this was the read failing rather than the
+                // token being absent. Say so, and leave the way out to the
+                // operator — Sign Out is on this screen.
+                stage = .locked(
+                    server,
+                    message: String(
+                        localized:
+                            "The stored token could not be unsealed. It is still on this device — try again, or sign out to replace it."
+                    )
+                )
+            } else {
+                stage = .signIn(server)
+            }
         } catch {
             stage = .locked(server, message: error.localizedDescription)
         }
