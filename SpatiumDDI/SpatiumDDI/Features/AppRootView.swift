@@ -16,7 +16,17 @@ struct AppRootView: View {
             .onChange(of: scenePhase) { _, phase in
                 // Lock as the app leaves the foreground, not when it returns —
                 // the token must not be resident while the app is backgrounded.
-                if phase != .active { flow.lockForBackground() }
+                if phase != .active {
+                    flow.lockForBackground()
+                } else {
+                    // Becoming active is the first moment the Keychain is
+                    // certain to answer. A launch that happened while the
+                    // device was locked — a prewarm, or a relaunch after a
+                    // force-quit — cannot see an item stored
+                    // `WhenPasscodeSetThisDeviceOnly`, and would otherwise
+                    // spend the whole session believing there was no token.
+                    flow.reconsiderIfUntouched()
+                }
             }
     }
 

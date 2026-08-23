@@ -162,8 +162,15 @@ nonisolated struct TokenStore: Sendable {
     ///
     /// Asks only for attributes: an attribute-only query doesn't unseal the
     /// value, so it doesn't trip the access control.
+    /// Whether the app should behave as though a token is stored.
+    ///
+    /// Errs towards **yes**, because the two wrong answers are not equally
+    /// bad. Saying "yes" when there is nothing costs one unlock attempt that
+    /// fails honestly and drops to sign-in. Saying "no" when the token is
+    /// there tells the operator their credential is gone and makes them enrol
+    /// a new one — over what may have been a momentary refusal.
     func hasToken(for address: ServerAddress) -> Bool {
-        attributes(for: address) != nil
+        presence(for: address) != .absent
     }
 
     /// What is actually guarding the stored token, or `nil` if there isn't one.
@@ -174,6 +181,40 @@ nonisolated struct TokenStore: Sendable {
         guard let attributes = attributes(for: address) else { return nil }
         guard let marker = attributes[kSecAttrGeneric as String] as? Data else { return .biometrics }
         return KeychainProtection(marker: marker) ?? .biometrics
+    }
+
+    /// Whether a token is stored — and the difference between "no" and
+    /// "cannot tell right now", which are not the same answer.
+    nonisolated enum Presence: Equatable {
+        case present
+        case absent
+        /// The Keychain refused to say. The item may well be there.
+        case unknown(OSStatus)
+    }
+
+    /// Looks for the item without prompting for anything.
+    ///
+    /// **Only `errSecItemNotFound` proves absence.** An item stored
+    /// `WhenPasscodeSetThisDeviceOnly` behind an access control answers
+    /// `errSecInteractionNotAllowed` when it cannot be reached at that
+    /// moment — while the device is locked, or when the query is not allowed
+    /// to interact — and reading that as "there is no token" is how a
+    /// perfectly good credential comes to be reported missing.
+    func presence(for address: ServerAddress) -> Presence {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account(for: address),
+            kSecReturnAttributes as String: true,
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
+        ]
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        switch status {
+        case errSecSuccess: return .present
+        case errSecItemNotFound: return .absent
+        default: return .unknown(status)
+        }
     }
 
     private func attributes(for address: ServerAddress) -> [String: Any]? {

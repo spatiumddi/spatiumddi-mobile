@@ -44,6 +44,27 @@ final class AppFlowModel {
         restore()
     }
 
+    /// True while the stage is still whatever `restore()` concluded, and no
+    /// deliberate navigation has happened since.
+    private var isLaunchStage = true
+
+    /// Re-reads the stored state if nothing has been chosen since launch.
+    ///
+    /// `restore()` runs in `init`, which is not always a moment the Keychain
+    /// can answer questions: an item stored `WhenPasscodeSetThisDeviceOnly` is
+    /// unreadable while the device is locked, and iOS launches apps for its own
+    /// reasons — a prewarm, a relaunch after a force-quit — without the screen
+    /// ever being unlocked. A launch that concluded "nothing to unlock" would
+    /// otherwise keep that conclusion for the whole session and send the
+    /// operator to enrol a token they already have.
+    ///
+    /// Guarded so it cannot undo a choice: an operator who deliberately went to
+    /// the server list stays there.
+    func reconsiderIfUntouched() {
+        guard isLaunchStage else { return }
+        restore()
+    }
+
     /// The chosen servers are configuration, not response data — non-negotiable
     /// #3 governs what the *control plane returns*, and these are the operator's
     /// own settings. They are not credentials, so they don't belong in the
@@ -111,6 +132,7 @@ final class AppFlowModel {
     /// pressed the button; making them confirm an opaque `sddi_…` string
     /// afterwards is ceremony, not consent.
     func enrolled(with token: String, to server: StoredServer) {
+        isLaunchStage = false
         remember(server)
         self.token = token
         pendingToken = nil
@@ -118,6 +140,7 @@ final class AppFlowModel {
     }
 
     func connected(to server: StoredServer, pendingToken: String? = nil) {
+        isLaunchStage = false
         remember(server)
         // Reaching a server is always the start of a new session, so a token
         // still in memory belongs to whatever came before — possibly a
@@ -133,6 +156,7 @@ final class AppFlowModel {
     }
 
     func signedIn(with token: String, to server: StoredServer) {
+        isLaunchStage = false
         self.token = token
         pendingToken = nil
         stage = .signedIn(server)
@@ -204,6 +228,7 @@ final class AppFlowModel {
     }
 
     func signOut() {
+        isLaunchStage = false
         let server = currentServer
         token = nil
         pendingToken = nil
@@ -218,12 +243,14 @@ final class AppFlowModel {
 
     /// Show the list. Every session-scoped state goes with the torn-down view.
     func showServers() {
+        isLaunchStage = false
         token = nil
         pendingToken = nil
         stage = .servers
     }
 
     func showAddServer() {
+        isLaunchStage = false
         token = nil
         pendingToken = nil
         stage = .addServer
@@ -238,6 +265,7 @@ final class AppFlowModel {
     /// "nothing an inactive server returned may linger" true by construction
     /// rather than by remembering to clear things.
     func select(_ server: StoredServer) {
+        isLaunchStage = false
         token = nil
         pendingToken = nil
         registry.setCurrentID(server.id)
@@ -250,6 +278,7 @@ final class AppFlowModel {
     /// removing a server means it, and leaving an approved certificate behind
     /// for a host they have finished with is a pin nobody is watching.
     func remove(_ server: StoredServer) {
+        isLaunchStage = false
         try? tokens.delete(for: server.address)
         try? trust.removePin(for: server.address)
         servers.removeAll { $0.id == server.id }
