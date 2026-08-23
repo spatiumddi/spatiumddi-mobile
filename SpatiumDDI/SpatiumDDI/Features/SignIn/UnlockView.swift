@@ -8,10 +8,23 @@ import SwiftUI
 /// Shown when a token is already stored for this server and needs unsealing.
 struct UnlockView: View {
     let address: ServerAddress
-    let biometryDescription: String
+    /// What is actually guarding the stored token.
+    ///
+    /// The item's own protection, not what the device could do today. A token
+    /// sealed behind a passcode stays passcode-gated even after Face ID is
+    /// enrolled, so promising Face ID here would be a lie the prompt then
+    /// contradicts.
+    let protection: KeychainProtection
     let message: String?
     let onUnlock: () -> Void
     let onSignOut: () -> Void
+
+    private var gateName: String {
+        switch protection {
+        case .biometrics: TokenStore.biometryDescription()
+        case .passcode: String(localized: "your passcode")
+        }
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -27,7 +40,7 @@ struct UnlockView: View {
             VStack(spacing: 6) {
                 Text(address.displayName)
                     .font(.headline)
-                Text("Unlock with \(biometryDescription) to continue.")
+                Text("Unlock with \(gateName) to continue.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -42,7 +55,7 @@ struct UnlockView: View {
             }
 
             Button(action: onUnlock) {
-                Label("Unlock", systemImage: "faceid")
+                Label("Unlock", systemImage: protection.symbol)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -60,7 +73,7 @@ struct UnlockView: View {
 #Preview {
     UnlockView(
         address: ServerAddress(host: "ddi.internal.example", port: 8443),
-        biometryDescription: "Face ID",
+        protection: .biometrics,
         message: nil,
         onUnlock: {}, onSignOut: {}
     )

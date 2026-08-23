@@ -70,9 +70,9 @@ struct RedactionTests {
 struct TokenStoreAvailabilityTests {
     /// Whatever the device offers, this must answer without trapping — the
     /// sign-in screen calls it on every render.
-    @Test("Biometry availability reports a reason instead of crashing")
+    @Test("Available protection reports a reason instead of crashing")
     func availabilityIsSafeToQuery() {
-        switch TokenStore.biometryAvailability() {
+        switch TokenStore.availableProtection() {
         case .success:
             #expect(!TokenStore.biometryDescription().isEmpty)
         case .failure(let error):
@@ -80,10 +80,14 @@ struct TokenStoreAvailabilityTests {
         }
     }
 
-    @Test("Saving without usable biometry fails rather than storing unprotected")
+    /// The rule that survived widening the gate to include a passcode
+    /// (spatiumddi-mobile#5): a device that can protect a token with *neither*
+    /// still refuses to store one, rather than writing a credential nothing
+    /// would ever be asked to unlock.
+    @Test("Saving on an unprotected device fails rather than storing unprotected")
     func refusesToStoreUnprotected() throws {
-        guard case .failure = TokenStore.biometryAvailability() else {
-            // Biometry is available here; this guarantee is covered by the flow itself.
+        guard case .failure = TokenStore.availableProtection() else {
+            // Something can protect a token here; the flow itself covers that path.
             return
         }
         let store = TokenStore(service: "io.spatiumddi.tests.\(UUID().uuidString)")

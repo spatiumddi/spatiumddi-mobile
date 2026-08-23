@@ -4,13 +4,34 @@
     "\"%@\" isn't a MAC address. Enter all twelve hex digits — separators are optional." : {
       "extractionState" : "extracted_with_value"
     },
+    "%@" : {
+      "extractionState" : "extracted_with_value"
+    },
     "%@ / %@" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "%@ already points at %@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "%@ is already in use in this zone." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "%@ is already recorded on %@%@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "%@ is already recorded on another address." : {
       "extractionState" : "extracted_with_value"
     },
     "%@ is in a change window." : {
       "extractionState" : "extracted_with_value"
     },
     "%@ is in a change window. Try again once it's finished." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "%@ isn't set up on this device. Setting it up is strongly recommended — it's harder to observe than a typed passcode, and it drops the stored token automatically if the enrolment ever changes." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "%@ of %@" : {
       "extractionState" : "extracted_with_value"
     },
     "%@ of %@ addresses" : {
@@ -52,10 +73,34 @@
     "%lldd left" : {
       "extractionState" : "extracted_with_value"
     },
+    "0" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "10" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "10.0.1.42" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "443" : {
+      "extractionState" : "extracted_with_value"
+    },
     "A code from the web console's API Tokens page fills in the address and signs you in. Typing the address above and entering a token by hand works just as well." : {
       "extractionState" : "extracted_with_value"
     },
+    "A forward record is created in this zone, and a reverse record if one is configured." : {
+      "extractionState" : "extracted_with_value"
+    },
     "A host name or IP address. Add a port if your control plane doesn't use 443." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "A host name or IP address. Add a port if your control plane doesn't use 443. The name is yours — \"Lab\", \"Prod EU\" — and is what the app calls this server from then on." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "A passcode is weaker than biometrics here, and unlike a biometric enrolment it doesn't invalidate the stored token when it changes. Sign in again after setting up biometrics to upgrade this." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "A token is never stored unprotected. Set a device passcode — and biometrics if this device has them — then come back." : {
       "extractionState" : "extracted_with_value"
     },
     "A token is only stored behind a biometric lock. Set up biometrics and a device passcode to continue." : {
@@ -88,6 +133,9 @@
     "Actual" : {
       "extractionState" : "extracted_with_value"
     },
+    "Add Server" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Address" : {
       "extractionState" : "extracted_with_value"
     },
@@ -107,6 +155,36 @@
       "extractionState" : "extracted_with_value"
     },
     "Alerts" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Allocate" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Allocate %@?" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Allocate Address" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Allocate Anyway" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Allocated" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Allocate…" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "An A record's value is a single IPv4 address." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "An AAAA record's value is a single IPv6 address." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "An SRV is priority, weight, port and target. All three numbers are required." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "An SRV needs a priority, a weight and a port." : {
       "extractionState" : "extracted_with_value"
     },
     "Apache License 2.0" : {
@@ -154,6 +232,9 @@
     "Cancel" : {
       "extractionState" : "extracted_with_value"
     },
+    "Candidate" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Certificate" : {
       "extractionState" : "extracted_with_value"
     },
@@ -173,6 +254,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Change Server" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Check for a newer candidate" : {
       "extractionState" : "extracted_with_value"
     },
     "Checks" : {
@@ -220,7 +304,16 @@
     "Couldn't save the trust decision. %@" : {
       "extractionState" : "extracted_with_value"
     },
+    "Create Record" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Create Record…" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Create a token in the SpatiumDDI web UI under your account settings, then paste it here." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Create this record?" : {
       "extractionState" : "extracted_with_value"
     },
     "Created" : {
@@ -247,6 +340,9 @@
     "DNS" : {
       "extractionState" : "extracted_with_value"
     },
+    "DNS: %@" : {
+      "extractionState" : "extracted_with_value"
+    },
     "DNSSEC" : {
       "extractionState" : "extracted_with_value"
     },
@@ -265,7 +361,13 @@
     "Description" : {
       "extractionState" : "extracted_with_value"
     },
+    "Description (optional)" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Device" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Device passcode" : {
       "extractionState" : "extracted_with_value"
     },
     "Domain" : {
@@ -277,10 +379,16 @@
     "Don't Trust" : {
       "extractionState" : "extracted_with_value"
     },
+    "Done" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Driver" : {
       "extractionState" : "extracted_with_value"
     },
     "Dynamic DNS" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Each server keeps its own token and its own approved certificate. Nothing is shared between them, and switching signs out of the one you're leaving." : {
       "extractionState" : "extracted_with_value"
     },
     "Email" : {
@@ -337,13 +445,22 @@
     "Find an address, subnet, zone, record, scope or reservation by name, IP or MAC." : {
       "extractionState" : "extracted_with_value"
     },
+    "Finding a free address…" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Forget Trusted Certificate" : {
       "extractionState" : "extracted_with_value"
     },
     "Forwarders" : {
       "extractionState" : "extracted_with_value"
     },
+    "Free" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Gateway" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Group" : {
       "extractionState" : "extracted_with_value"
     },
     "Groups" : {
@@ -379,6 +496,9 @@
     "Host" : {
       "extractionState" : "extracted_with_value"
     },
+    "Host name" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Hostname" : {
       "extractionState" : "extracted_with_value"
     },
@@ -395,6 +515,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Identity" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "In %@" : {
       "extractionState" : "extracted_with_value"
     },
     "Include randomised MACs" : {
@@ -439,6 +562,9 @@
     "Leases — showing %lld of %lld" : {
       "extractionState" : "extracted_with_value"
     },
+    "Leave the host name empty to take the address without publishing a DNS record. \"Reserved\" holds an address without saying a machine is on it yet." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Licence" : {
       "extractionState" : "extracted_with_value"
     },
@@ -448,7 +574,16 @@
     "Look Up" : {
       "extractionState" : "extracted_with_value"
     },
+    "Lower is preferred. Left empty, the server uses 10." : {
+      "extractionState" : "extracted_with_value"
+    },
     "MAC" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "MAC %@" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "MAC address (optional)" : {
       "extractionState" : "extracted_with_value"
     },
     "Maintenance in progress" : {
@@ -481,10 +616,22 @@
     "Most recent first. ^[%lld record](inflect: true)." : {
       "extractionState" : "extracted_with_value"
     },
+    "Must be inside %@. The server checks, and says so if it isn't." : {
+      "extractionState" : "extracted_with_value"
+    },
     "NAK" : {
       "extractionState" : "extracted_with_value"
     },
     "NS drift" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Name" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Name (optional)" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Named %@, in this subnet's configured zone" : {
       "extractionState" : "extracted_with_value"
     },
     "Nameservers" : {
@@ -497,6 +644,12 @@
       "extractionState" : "extracted_with_value"
     },
     "New Devices" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "New Record" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Next available" : {
       "extractionState" : "extracted_with_value"
     },
     "No %@ alerts in this list." : {
@@ -515,6 +668,9 @@
       "extractionState" : "extracted_with_value"
     },
     "No DHCP traffic in the last %@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "No DNS record is created without a host name." : {
       "extractionState" : "extracted_with_value"
     },
     "No DNS server groups are defined on this server." : {
@@ -571,6 +727,9 @@
     "No expiry recorded" : {
       "extractionState" : "extracted_with_value"
     },
+    "No host name, so no DNS record" : {
+      "extractionState" : "extracted_with_value"
+    },
     "No hostname, FQDN or MAC is recorded for this address." : {
       "extractionState" : "extracted_with_value"
     },
@@ -601,6 +760,9 @@
     "No telemetry, analytics or crash reporting leaves this device." : {
       "extractionState" : "extracted_with_value"
     },
+    "No token is stored on this device." : {
+      "extractionState" : "extracted_with_value"
+    },
     "No token to sign in with." : {
       "extractionState" : "extracted_with_value"
     },
@@ -619,7 +781,13 @@
     "Not after" : {
       "extractionState" : "extracted_with_value"
     },
+    "Not allocated" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Not before" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Not created" : {
       "extractionState" : "extracted_with_value"
     },
     "Note" : {
@@ -629,6 +797,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Nothing has been recorded." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Nothing has been written. Continuing waives every warning above at once — read them all before you do." : {
       "extractionState" : "extracted_with_value"
     },
     "Nothing here" : {
@@ -676,10 +847,19 @@
     "Pools" : {
       "extractionState" : "extracted_with_value"
     },
+    "Port" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Preference" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Presented for" : {
       "extractionState" : "extracted_with_value"
     },
     "Primary NS" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Priority" : {
       "extractionState" : "extracted_with_value"
     },
     "Privacy" : {
@@ -688,13 +868,22 @@
     "Probe" : {
       "extractionState" : "extracted_with_value"
     },
+    "Prod EU" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Profiled" : {
       "extractionState" : "extracted_with_value"
     },
     "Project" : {
       "extractionState" : "extracted_with_value"
     },
+    "Protected by" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Reachable" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Record" : {
       "extractionState" : "extracted_with_value"
     },
     "Records" : {
@@ -712,6 +901,24 @@
     "Relays" : {
       "extractionState" : "extracted_with_value"
     },
+    "Remove" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Remove %@?" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Remove Server" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Rename" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Rename Server" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Rename This Server" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Renumbering or freeing this address affects these too. Follow them up in the web console." : {
       "extractionState" : "extracted_with_value"
     },
@@ -722,6 +929,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Reservations" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Reserved" : {
       "extractionState" : "extracted_with_value"
     },
     "Reserved until" : {
@@ -740,6 +950,9 @@
       "extractionState" : "extracted_with_value"
     },
     "SHA-256 Fingerprint" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Save" : {
       "extractionState" : "extracted_with_value"
     },
     "Saving…" : {
@@ -790,10 +1003,16 @@
     "Servers" : {
       "extractionState" : "extracted_with_value"
     },
+    "Service" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Show token" : {
       "extractionState" : "extracted_with_value"
     },
     "Showing %lld of %lld matches. Narrow the search to see more." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Shown instead of %@. Leave it empty to use the address." : {
       "extractionState" : "extracted_with_value"
     },
     "Sightings" : {
@@ -808,6 +1027,9 @@
     "Sign Out" : {
       "extractionState" : "extracted_with_value"
     },
+    "Sign-in needed" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Signature" : {
       "extractionState" : "extracted_with_value"
     },
@@ -818,6 +1040,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Signing out deletes this device's stored token for %@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Signing out deletes this device's stored token for %@. The server stays in your list, with its name and its approved certificate." : {
       "extractionState" : "extracted_with_value"
     },
     "Source" : {
@@ -832,10 +1057,16 @@
     "SpatiumDDI platform" : {
       "extractionState" : "extracted_with_value"
     },
+    "Specific" : {
+      "extractionState" : "extracted_with_value"
+    },
     "State" : {
       "extractionState" : "extracted_with_value"
     },
     "Status" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Status: %@" : {
       "extractionState" : "extracted_with_value"
     },
     "Subject" : {
@@ -851,6 +1082,12 @@
       "extractionState" : "extracted_with_value"
     },
     "Superadmin — every action on every resource." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Switch Server" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "TTL" : {
       "extractionState" : "extracted_with_value"
     },
     "Tags" : {
@@ -871,10 +1108,16 @@
     "That code is for %@, not %@. Go back and change server if you meant to connect there." : {
       "extractionState" : "extracted_with_value"
     },
+    "That conflicts with something already on the server. Nothing was changed." : {
+      "extractionState" : "extracted_with_value"
+    },
     "That doesn't look like an API token or a JWT. Check what you pasted." : {
       "extractionState" : "extracted_with_value"
     },
     "The %@ feature module is switched off on this server, so there's nothing here to show." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The %@ feature module is switched off on this server." : {
       "extractionState" : "extracted_with_value"
     },
     "The registrar's nameservers don't match what's expected here." : {
@@ -883,16 +1126,34 @@
     "The request was cancelled." : {
       "extractionState" : "extracted_with_value"
     },
+    "The reverse record %@ already points at %@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The server didn't offer a free address in this subnet. Enter one specifically, or pick another subnet." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The server didn't respond in time." : {
       "extractionState" : "extracted_with_value"
     },
     "The server didn't return an identity." : {
       "extractionState" : "extracted_with_value"
     },
+    "The server doesn't have this any more — it may have been deleted." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The server enforces these independently. What this app shows or hides is a convenience, not a security boundary." : {
       "extractionState" : "extracted_with_value"
     },
+    "The server is in a change window and nothing was changed. Try again once it's finished." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The server matches a MAC exactly, so enter all twelve digits — separators don't matter. Leave it empty to see everything. The log keeps 24 hours." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The server publishes into whichever zone this subnet is configured for, following the space → block → subnet inheritance. Pick one above to override it." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The server raised a %@ warning." : {
       "extractionState" : "extracted_with_value"
     },
     "The server rejected that token. Check it hasn't been revoked or expired." : {
@@ -901,10 +1162,19 @@
     "The server truncated this log — narrow the filter to see further back." : {
       "extractionState" : "extracted_with_value"
     },
+    "The server wants a second look" : {
+      "extractionState" : "extracted_with_value"
+    },
     "The server's certificate changed since you connected. Reconnect to review it." : {
       "extractionState" : "extracted_with_value"
     },
     "The token is stored in the Keychain and unlocked with %@. It never leaves this device except as an Authorization header to %@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The zone's serial is bumped and the change is pushed to every server in the group." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This Device" : {
       "extractionState" : "extracted_with_value"
     },
     "This account has no grants." : {
@@ -914,6 +1184,12 @@
       "extractionState" : "extracted_with_value"
     },
     "This account must change its password on the web console." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This address is inside a DHCP pool. The DHCP server owns that range and will keep leasing the address unless you also pin a matching static reservation." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This address is inside the DHCP pool %@–%@. The DHCP server owns that range and will keep leasing the address unless you also pin a matching static reservation." : {
       "extractionState" : "extracted_with_value"
     },
     "This app is built against %@. Parts of it may not work against %@." : {
@@ -931,6 +1207,12 @@
     "This certificate matches the fingerprint in the code you scanned." : {
       "extractionState" : "extracted_with_value"
     },
+    "This deletes the stored token for %@ and the certificate you approved for it. Nothing on the server changes." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This device has no biometric hardware, so a passcode is the strongest protection available here." : {
+      "extractionState" : "extracted_with_value"
+    },
     "This device has no network connection." : {
       "extractionState" : "extracted_with_value"
     },
@@ -938,6 +1220,9 @@
       "extractionState" : "extracted_with_value"
     },
     "This group has no zones." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This is a candidate, not a reservation — the server takes no lock when it suggests one. If someone else claims it first, you'll be told and can take the next one." : {
       "extractionState" : "extracted_with_value"
     },
     "This is a development build, so it can't be checked against the minimum supported release (%@)." : {
@@ -964,7 +1249,13 @@
     "This space has no blocks." : {
       "extractionState" : "extracted_with_value"
     },
+    "This subnet's own zone" : {
+      "extractionState" : "extracted_with_value"
+    },
     "This zone has no records." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This zone is generated by the Tailscale integration. Its records are managed by the reconciler and can't be edited here." : {
       "extractionState" : "extracted_with_value"
     },
     "Time" : {
@@ -1006,6 +1297,9 @@
     "Update available: %@" : {
       "extractionState" : "extracted_with_value"
     },
+    "Use @ for the zone itself. Leave the TTL empty to inherit the zone's %lld seconds." : {
+      "extractionState" : "extracted_with_value"
+    },
     "User" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1045,6 +1339,9 @@
     "Warning" : {
       "extractionState" : "extracted_with_value"
     },
+    "Weight" : {
+      "extractionState" : "extracted_with_value"
+    },
     "What it would do" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1054,10 +1351,28 @@
     "Why this needs approval" : {
       "extractionState" : "extracted_with_value"
     },
+    "Will be created as %@" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Will create" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "You don't have permission to make this change. Ask an administrator to review your role." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "You'll be shown exactly what will be created before anything is sent." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Your session is no longer valid. Sign in again." : {
       "extractionState" : "extracted_with_value"
     },
     "Your token is held in the Keychain behind biometrics." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Your token will be protected by %@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Your token will be protected by your device passcode." : {
       "extractionState" : "extracted_with_value"
     },
     "Zone" : {
@@ -1109,6 +1424,9 @@
       "extractionState" : "extracted_with_value"
     },
     "chain invalid" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "current" : {
       "extractionState" : "extracted_with_value"
     },
     "ddi.internal.example" : {
@@ -1205,6 +1523,9 @@
       "extractionState" : "extracted_with_value"
     },
     "wt %lld" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "your passcode" : {
       "extractionState" : "extracted_with_value"
     }
   },

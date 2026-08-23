@@ -32,17 +32,46 @@ silent — a renamed field simply decodes as absent, and the screen renders as
 though the data were empty. For an app whose job is reporting the truth about a
 production network, silently wrong is worse than broken.
 
-### 2. Tokens live in the Keychain, gated by biometrics
+### 2. Tokens live in the Keychain, behind the operator
 
-Never `UserDefaults`, never a plist, never a log line. Keychain items use
-`kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` with a `.biometryCurrentSet`
-access control, so changing the device's biometric enrolment invalidates them.
+Never `UserDefaults`, never a plist, never a log line. Keychain items always use
+`kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly`, so an item cannot exist on a
+device with no passcode at all.
+
+The access control on top of that is the strongest the device can offer:
+
+| Device state | Access control | What it means |
+|---|---|---|
+| Biometrics enrolled | `.biometryCurrentSet` | Preferred. Enrolling a new face or finger **invalidates** the item, so a coerced enrolment change cannot inherit access to production DNS |
+| Passcode only | `.devicePasscode` | Allowed, and said out loud. Weaker: typed in public, shoulder-surfable, often shared, and it does not self-invalidate |
+| Neither | — | Refused |
+
+The original rule said *biometrics*. The requirement underneath it is that a
+token is never left unprotected, and a passcode-gated Keychain item is not
+unprotected — but it is second-best, so the app names which one is in force
+rather than letting an operator assume Face ID is involved when it is not. The
+choice is shown on the sign-in screen **before** the token is stored, and on the
+Server screen for as long as it is.
+
+Which gate an item was sealed behind is recorded as a Keychain **attribute**
+beside it (`kSecAttrGeneric`), not in a defaults file that could disagree with
+reality — and it is what decides which `LAPolicy` is evaluated when the token is
+read back. A passcode-satisfied context does not unseal a `.biometryCurrentSet`
+item, so evaluating the wrong policy would fail for no reason the operator could
+act on. Items written before the app understood passcode protection carry no
+attribute; those are biometric by construction, which is the fallback.
 
 The gate is enforced **in the token store, not at its call sites**.
 `SecAccessControlCreateWithFlags` will mint a `.biometryCurrentSet` policy on a
 device with no enrolment — the simulator does exactly this — and the write then
 succeeds, storing a token nothing would ever be asked to unlock. The store
-therefore refuses to save at all unless biometry is genuinely available.
+therefore chooses the policy itself and refuses outright when neither is
+available.
+
+A biometric **lockout** — too many failed attempts — is deliberately still
+counted as biometrics. The enrolment is intact and the lockout clears on the
+next passcode unlock; downgrading a token's protection because of a transient
+state would make that state permanent.
 
 `Authorization` is redacted in every logging path, through a single helper that
 exists so no future logging code can print it by accident.

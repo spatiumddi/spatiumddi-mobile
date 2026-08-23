@@ -23,28 +23,44 @@ struct AppRootView: View {
     @ViewBuilder
     private var content: some View {
         switch flow.stage {
-        case .chooseServer:
-            ServerSetupView { outcome in
-                switch outcome {
-                case .enrolled(let address, let token):
-                    flow.enrolled(with: token, to: address)
-                case .needsSignIn(let address, let prefill):
-                    flow.connected(to: address, pendingToken: prefill)
-                }
-            }
-
-        case .signIn(let address):
-            SignInView(
-                model: SignInModel(address: address, prefilledToken: flow.pendingToken) { token in
-                    flow.signedIn(with: token, to: address)
-                },
-                onChangeServer: { flow.changeServer() }
+        case .servers:
+            ServerListView(
+                servers: flow.servers,
+                currentID: flow.currentServerID,
+                hasToken: { flow.hasToken(for: $0) },
+                protection: { flow.protection(for: $0) },
+                onSelect: { flow.select($0) },
+                onAdd: { flow.showAddServer() },
+                onRemove: { flow.remove($0) },
+                onRename: { flow.rename($0, to: $1) }
             )
 
-        case .locked(let address, let message):
+        case .addServer:
+            ServerSetupView(
+                onConnected: { outcome in
+                    switch outcome {
+                    case .enrolled(let server, let token):
+                        flow.enrolled(with: token, to: server)
+                    case .needsSignIn(let server, let prefill):
+                        flow.connected(to: server, pendingToken: prefill)
+                    }
+                },
+                // Only offered when there is a list to go back to.
+                onCancel: flow.servers.isEmpty ? nil : { flow.showServers() }
+            )
+
+        case .signIn(let server):
+            SignInView(
+                model: SignInModel(server: server, prefilledToken: flow.pendingToken) { token in
+                    flow.signedIn(with: token, to: server)
+                },
+                onChangeServer: { flow.showServers() }
+            )
+
+        case .locked(let server, let message):
             UnlockView(
-                address: address,
-                biometryDescription: flow.biometryDescription,
+                address: server.address,
+                protection: flow.protection(for: server) ?? .biometrics,
                 message: message,
                 onUnlock: { Task { await flow.unlock() } },
                 onSignOut: { flow.signOut() }
@@ -59,13 +75,15 @@ struct AppRootView: View {
                 await flow.unlock()
             }
 
-        case .signedIn(let address):
+        case .signedIn(let server):
             if let token = flow.token {
                 SignedInView(
-                    address: address,
+                    server: server,
                     token: token,
+                    protection: flow.protection(for: server),
                     onSignOut: { flow.signOut() },
-                    onChangeServer: { flow.changeServer() },
+                    onSwitchServer: { flow.showServers() },
+                    onRename: { flow.rename(server, to: $0) },
                     onSessionRejected: { flow.sessionRejected() }
                 )
             } else {
@@ -82,12 +100,17 @@ struct AppRootView: View {
 /// Only the surfaces that are actually built appear here — an app for production
 /// networking should not show a screen implying it knows something it does not.
 struct SignedInView: View {
-    let address: ServerAddress
+    let server: StoredServer
     let token: String
+    /// What is holding this server's token, for the Server screen to report.
+    let protection: KeychainProtection?
     let onSignOut: () -> Void
-    let onChangeServer: () -> Void
+    let onSwitchServer: () -> Void
+    let onRename: (String?) -> Void
     /// Called when the server rejects the credential this session was built with.
     let onSessionRejected: () -> Void
+
+    private var address: ServerAddress { server.address }
 
     /// Built once and torn down explicitly.
     ///
@@ -106,6 +129,9 @@ struct SignedInView: View {
     /// no obvious way to the rest of the app.
     @State private var section: AppSection?
     @State private var features = FeatureModules()
+    /// Read once per session and handed down, so a write button can be hidden
+    /// from someone who cannot use it. UX only — see `Permissions`.
+    @State private var permissions = Permissions()
     /// Bound so the system can open and close the sidebar itself.
     ///
     /// Left at `.automatic` deliberately: that is what keeps the sidebar
@@ -124,8 +150,14 @@ struct SignedInView: View {
                             HStack(spacing: 10) {
                                 BrandMark(size: 30)
                                 VStack(alignment: .leading, spacing: 0) {
-                                    Text(verbatim: "SpatiumDDI").font(.headline)
-                                    Text(session.address.displayName)
+                                    // The server, not the product. Which estate
+                                    // is loaded is the fact that decides whether
+                                    // a write lands in the right place, so it is
+                                    // the one that gets the headline.
+                                    Text(verbatim: server.displayName)
+                                        .font(.headline)
+                                        .lineLimit(1)
+                                    Text(verbatim: server.subtitle ?? session.address.displayName)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
@@ -181,20 +213,28 @@ struct SignedInView: View {
                 // slide the sidebar over the top of it, which is the wrong
                 // trade on a screen big enough to show both.
                 .navigationSplitViewStyle(.balanced)
+                .environment(permissions)
             } else {
                 ProgressView()
             }
         }
-        .task(id: token) {
+        // Keyed on the server as well as the token: two control planes are two
+        // sessions even if a token were somehow shared, and a stale client
+        // pointed at the estate you just left is the exact failure that makes
+        // "which server am I on" dangerous rather than merely confusing.
+        .task(id: [server.id, token]) {
             session?.invalidate()
             let created = ControlPlaneSession(address: address, token: token) {
                 // The middleware runs on whatever queue the response arrived on.
                 Task { @MainActor in onSessionRejected() }
             }
             session = created
-            // Read once per session, before the sidebar settles. Failing here
+            // Read once per session, before the sidebar settles. Both fail
+            // open: a module list or a grant list this app couldn't read
             // leaves everything visible rather than hiding the app.
-            await features.load(from: created)
+            async let modules: Void = features.load(from: created)
+            async let grants: Void = permissions.load(from: created)
+            _ = await (modules, grants)
         }
         .onDisappear {
             session?.invalidate()
@@ -249,10 +289,12 @@ struct SignedInView: View {
             AboutView()
         case .server:
             ServerDetailView(
-                address: session.address,
+                server: server,
                 session: session,
+                protection: protection,
                 onSignOut: onSignOut,
-                onChangeServer: onChangeServer
+                onSwitchServer: onSwitchServer,
+                onRename: onRename
             )
         }
     }
@@ -260,19 +302,53 @@ struct SignedInView: View {
 
 /// Connection, identity and session controls.
 struct ServerDetailView: View {
-    let address: ServerAddress
+    let server: StoredServer
     let session: ControlPlaneSession
+    let protection: KeychainProtection?
     let onSignOut: () -> Void
-    let onChangeServer: () -> Void
+    let onSwitchServer: () -> Void
+    let onRename: (String?) -> Void
 
+    private var address: ServerAddress { server.address }
+
+    @State private var isRenaming = false
     @State private var identity: LoadState<Components.Schemas.AppApiV1AuthRouterUserResponse> = .idle
     @State private var permissions: LoadState<Components.Schemas.MyPermissionsResponse> = .idle
 
     var body: some View {
         List {
             Section("Connection") {
-                LabeledContent("Server", value: address.displayName)
+                LabeledContent("Name") {
+                    // The operator's own word for this estate. Rendered
+                    // verbatim: it is their text, not this app's, so it is
+                    // neither translated nor parsed as Markdown.
+                    Text(verbatim: server.trimmedLabel ?? server.address.displayName)
+                }
+                LabeledContent("Address", value: address.displayName)
                 LabeledContent("Built against", value: SupportedServer.minimum.displayName)
+                Button("Rename This Server") { isRenaming = true }
+            }
+
+            // What is actually holding the token on this device. Stated rather
+            // than assumed: a passcode-gated token is a weaker promise than a
+            // biometric one, and the operator is entitled to know which they
+            // have without working it out from their device settings.
+            Section {
+                if let protection {
+                    LabeledContent("Protected by") {
+                        Label(protection.summary, systemImage: protection.symbol)
+                            .foregroundStyle(protection == .passcode ? .orange : .primary)
+                    }
+                } else {
+                    // The in-memory token outlives the Keychain item after a
+                    // sign-out elsewhere; saying "none" beats implying one.
+                    Label("No token is stored on this device.", systemImage: "lock.slash")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("This Device")
+            } footer: {
+                if let caveat = protection?.caveat { Text(caveat) }
             }
 
             Section("Signed in as") {
@@ -337,15 +413,25 @@ struct ServerDetailView: View {
             }
 
             Section {
-                Button("Change Server", action: onChangeServer)
+                Button("Switch Server", action: onSwitchServer)
                 Button("Sign Out", role: .destructive, action: onSignOut)
             } footer: {
-                Text("Signing out deletes this device's stored token for \(address.displayName).")
+                Text(
+                    "Signing out deletes this device's stored token for \(address.displayName). The server stays in your list, with its name and its approved certificate."
+                )
             }
         }
         .navigationTitle("Server")
         .refreshable { await refresh() }
         .task { if case .idle = identity { await refresh() } }
+        .sheet(isPresented: $isRenaming) {
+            RenameServerSheet(server: server) { label in
+                onRename(label)
+                isRenaming = false
+            } onCancel: {
+                isRenaming = false
+            }
+        }
     }
 
     private func refresh() async {

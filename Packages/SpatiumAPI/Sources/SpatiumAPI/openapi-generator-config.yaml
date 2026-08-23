@@ -17,7 +17,10 @@ namingStrategy: idiomatic
 filter:
   # Phase 1 is read-mostly. The document describes 842 paths; generating all of
   # them produces an enormous client for a handful of screens. This is the
-  # surface #884 Phase 1 names, and nothing beyond it.
+  # surface #884 Phase 1 names, plus the two Phase 2 writes an operator
+  # standing in front of a machine actually needs — allocating an address and
+  # naming it (spatiumddi-mobile#7). Both POSTs are on paths already listed
+  # here for their GET, so the filter shape is unchanged.
   paths:
     # Platform state — version handshake and the health/maintenance banner.
     - /api/v1/version
@@ -48,6 +51,10 @@ filter:
     - /api/v1/ipam/subnets/{subnet_id}
     - /api/v1/ipam/subnets/{subnet_id}/addresses
     - /api/v1/ipam/addresses/{address_id}
+    # Read-only peek at what `allocate_next_ip` would hand out. Explicitly no
+    # lock and no write: two callers get the same candidate and the first to
+    # POST wins, so the allocate sheet says so and handles losing the race.
+    - /api/v1/ipam/subnets/{subnet_id}/next-ip-preview
     - /api/v1/reports/top-subnets-by-utilization
 
     # DNS: group → zone → record.

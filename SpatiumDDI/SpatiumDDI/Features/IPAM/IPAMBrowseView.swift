@@ -8,8 +8,9 @@ import SwiftUI
 
 /// IPAM browse: space → block → subnet → address.
 ///
-/// Read-only. Phase 1 is read-mostly, and nothing here mutates a production
-/// network — every row is a navigation, not an action.
+/// Read all the way down; the one write is taking an address in a subnet, and
+/// it lives behind an explicit sheet with its own confirmation. Every row here
+/// is still a navigation, not an action.
 struct IPAMBrowseView: View {
     let session: ControlPlaneSession
 
@@ -196,6 +197,8 @@ struct IPAMAddressesView: View {
 
     @State private var state: LoadState<[Components.Schemas.IPAddressResponse]> = .idle
     @State private var query = ""
+    @State private var isAllocating = false
+    @Environment(Permissions.self) private var permissions
 
     private var visible: [Components.Schemas.IPAddressResponse] {
         guard case .loaded(let addresses) = state else { return [] }
@@ -247,6 +250,35 @@ struct IPAMAddressesView: View {
         .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
+        .toolbar {
+            // Hidden from an account with no write grant as a courtesy. The
+            // server enforces this independently — non-negotiable #4 — and the
+            // sheet still reports a 403 honestly if the gate here was wrong.
+            if permissions.canWrite("subnet", "ip_address", id: subnet.id) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isAllocating = true
+                    } label: {
+                        Label("Allocate Address", systemImage: "plus")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $isAllocating) {
+            AllocateAddressView(
+                session: session,
+                subnet: subnet,
+                onCreated: { _ in
+                    // Refetched rather than inserted locally. The row the
+                    // server returns is pre-enrichment — no `fqdn`, no vendor,
+                    // no pool membership — so splicing it in would show a
+                    // freshly created address as the one row missing the
+                    // details every other row has.
+                    Task { await fetch() }
+                },
+                onDismiss: { isAllocating = false }
+            )
+        }
     }
 
     private func load() { Task { await fetch() } }

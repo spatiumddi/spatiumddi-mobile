@@ -14,8 +14,13 @@ import Foundation
 /// is protected and a token that is merely stored.
 nonisolated struct TokenEnrolment {
     enum Outcome: Equatable {
-        /// Accepted by the server and written to the Keychain behind biometry.
-        case enrolled
+        /// Accepted by the server and sealed in the Keychain, behind this.
+        ///
+        /// Carries the protection rather than a bare success so the caller can
+        /// say which gate is actually holding the token — an operator on a
+        /// passcode-only device should not be left to assume Face ID is
+        /// involved when it is not.
+        case enrolled(KeychainProtection)
         /// Refused, with something the operator can act on.
         case failed(FailureMessage)
     }
@@ -23,9 +28,18 @@ nonisolated struct TokenEnrolment {
     var probe: ControlPlaneProbe = ControlPlaneProbe()
     var tokens: TokenStore = TokenStore()
 
-    /// Why biometry cannot protect a token on this device, if it cannot.
-    var biometryUnavailableReason: String? {
-        if case .failure(let error) = TokenStore.biometryAvailability() {
+    /// What would guard a token sealed right now, or why nothing could.
+    ///
+    /// Answerable without writing anything, which is what lets the sign-in
+    /// screen warn about a passcode-only device *before* the token is stored
+    /// rather than reporting it afterwards.
+    var availableProtection: Result<KeychainProtection, TokenStore.StoreError> {
+        TokenStore.availableProtection()
+    }
+
+    /// Why this device cannot protect a token at all, if it cannot.
+    var unprotectedReason: String? {
+        if case .failure(let error) = availableProtection {
             return error.localizedDescription
         }
         return nil
@@ -35,12 +49,12 @@ nonisolated struct TokenEnrolment {
         let token = rawToken.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !token.isEmpty else { return .failed(.app("No token to sign in with.")) }
 
-        // Refuse before writing anything that could not be protected properly.
+        // Refuse before writing anything that could not be protected at all.
         // Checked here as well as in the store because the message an operator
-        // needs is "set up Face ID", not a Keychain error code.
+        // needs is "set a passcode", not a Keychain error code.
         // Foundation already localised this LAError text, so it goes through
         // verbatim rather than being re-keyed against this app's catalogue.
-        if let reason = biometryUnavailableReason { return .failed(.server(reason)) }
+        if let reason = unprotectedReason { return .failed(.server(reason)) }
 
         switch await probe.validateToken(token, for: address) {
         case .authenticated, .forbidden:
@@ -48,8 +62,7 @@ nonisolated struct TokenEnrolment {
             // read its own permissions — an authorisation problem to surface
             // later, not a reason to reject a working token here.
             do {
-                try tokens.save(token, for: address)
-                return .enrolled
+                return .enrolled(try tokens.save(token, for: address))
             } catch {
                 return .failed(.server(error.localizedDescription))
             }

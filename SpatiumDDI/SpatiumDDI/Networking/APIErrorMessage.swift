@@ -25,7 +25,7 @@ nonisolated enum APIErrorMessage {
                 "The \(module) feature module is switched off on this server, so there's nothing here to show."
             )
         }
-        if let detail = error.detail, error.status == 404 || error.status == 403 {
+        if let detail = error.detail, Self.detailBearingStatuses.contains(error.status) {
             // The server's own words, and untrusted input. `.server` renders
             // them verbatim: no Markdown parsing, so a `detail` carrying a
             // link cannot become a tappable one, and no catalogue lookup, so a
@@ -34,6 +34,46 @@ nonisolated enum APIErrorMessage {
             return .server(detail)
         }
         return describe(status: error.status)
+    }
+
+    /// Statuses whose `detail` says something the generic wording cannot.
+    ///
+    /// 409 and 422 matter most on a write: "Address 10.0.1.7 is already
+    /// allocated in this subnet" and "mac_address is required when status is
+    /// 'static_dhcp'" are the whole answer, and replacing either with "the
+    /// server rejected that request" throws away the only actionable sentence.
+    private static let detailBearingStatuses: Set<Int> = [400, 403, 404, 409, 422]
+
+    /// The message for a failed **write**.
+    ///
+    /// Split from the read wording because the same statuses mean different
+    /// things when something was being changed. "You don't have permission to
+    /// read this" on a rejected allocation is simply the wrong sentence, and a
+    /// 503 needs to say that nothing was changed — non-negotiable #5 forbids
+    /// retrying into a change window, so the operator has to know where they
+    /// stand rather than wonder whether it half-landed.
+    static func describeWrite(_ error: APIStatusError) -> FailureMessage {
+        if let module = error.disabledFeatureModule {
+            return .app("The \(module) feature module is switched off on this server.")
+        }
+        if let detail = error.detail, detailBearingStatuses.contains(error.status) {
+            return .server(detail)
+        }
+        switch error.status {
+        case 403:
+            return .app(
+                "You don't have permission to make this change. Ask an administrator to review your role."
+            )
+        case 404:
+            return .app("The server doesn't have this any more — it may have been deleted.")
+        case 409:
+            return .app("That conflicts with something already on the server. Nothing was changed.")
+        case 503:
+            return .app(
+                "The server is in a change window and nothing was changed. Try again once it's finished.")
+        default:
+            return describe(status: error.status)
+        }
     }
 
     static func describe(_ error: any Error) -> FailureMessage {

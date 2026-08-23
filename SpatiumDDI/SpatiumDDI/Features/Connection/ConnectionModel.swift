@@ -33,6 +33,12 @@ final class ConnectionModel {
     }
 
     var addressInput: String = ""
+    /// An optional name for this control plane, typed while adding it.
+    ///
+    /// Offered at the point the operator is looking at the hostname, which is
+    /// the only moment they know which one it is. Naming it later, from a list
+    /// of near-identical hosts, is the problem the label exists to solve.
+    var labelInput: String = ""
     private(set) var state: State = .idle
     var pendingTrust: PendingTrust?
     var isScanning = false
@@ -125,6 +131,11 @@ final class ConnectionModel {
     }
 
     var isBusy: Bool { state == .connecting }
+
+    /// The server as it should be recorded, with whatever name was typed.
+    func server(at address: ServerAddress) -> StoredServer {
+        StoredServer(address: address, label: labelInput)
+    }
 
     func connect() async {
         let address: ServerAddress

@@ -23,8 +23,17 @@ struct SignInView: View {
                 BrandHeader()
 
                 Section {
-                    LabeledContent("Server", value: model.address.displayName)
-                    Button("Change Server", action: onChangeServer)
+                    LabeledContent("Server") {
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(verbatim: model.server.displayName)
+                            if let subtitle = model.server.subtitle {
+                                Text(verbatim: subtitle)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    Button("Switch Server", action: onChangeServer)
                         .disabled(model.isBusy)
                 }
 
@@ -83,16 +92,20 @@ struct SignInView: View {
                     }
                 }
 
-                if let reason = model.biometryUnavailableReason {
-                    Section {
-                        Label(reason, systemImage: "lock.slash.fill")
-                            .foregroundStyle(.red)
-                    } footer: {
+                // Shown in every case, including the good one — the operator is
+                // about to hand this app a credential for production DNS, and
+                // what will be holding it is not a detail to leave implicit.
+                Section {
+                    DeviceProtectionNotice(protection: model.availableProtection)
+                } footer: {
+                    if model.isDeviceUnprotected {
                         Text(
-                            "A token is only stored behind a biometric lock. Set up biometrics and a device passcode to continue."
+                            "A token is never stored unprotected. Set a device passcode — and biometrics if this device has them — then come back."
                         )
                     }
-                } else {
+                }
+
+                if !model.isDeviceUnprotected {
                     Section {
                         Button {
                             Task { await model.signIn() }

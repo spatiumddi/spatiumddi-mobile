@@ -27,20 +27,25 @@ final class SignInModel {
     var scanNotice: String?
     var isScanning = false
 
-    let address: ServerAddress
+    /// The control plane, with whatever the operator named it.
+    let server: StoredServer
+    /// The origin itself. Kept distinct from the name: an address mismatch in a
+    /// scanned code is a fact about hosts, and reporting it in terms of a
+    /// nickname would hide which two hosts actually disagreed.
+    var address: ServerAddress { server.address }
     private let enrolment: TokenEnrolment
     private let trust: TrustStore
     private let onSignedIn: (String) -> Void
 
     init(
-        address: ServerAddress,
+        server: StoredServer,
         prefilledToken: String? = nil,
         probe: ControlPlaneProbe = ControlPlaneProbe(),
         tokens: TokenStore = TokenStore(),
         trust: TrustStore = TrustStore(),
         onSignedIn: @escaping (String) -> Void
     ) {
-        self.address = address
+        self.server = server
         // Filled, never submitted. A code scanned on the connect screen has
         // still not been seen by the operator, and #6's spirit is that nothing
         // consequential happens without them looking at it.
@@ -108,7 +113,16 @@ final class SignInModel {
 
     var biometryDescription: String { TokenStore.biometryDescription() }
 
-    var biometryUnavailableReason: String? { enrolment.biometryUnavailableReason }
+    /// What will hold the token once it is sealed, or why nothing could.
+    ///
+    /// Read before signing in, not after: a passcode-only device is a trade-off
+    /// the operator is accepting, and it has to be on screen while they still
+    /// have the choice.
+    var availableProtection: Result<KeychainProtection, TokenStore.StoreError> {
+        enrolment.availableProtection
+    }
+
+    var isDeviceUnprotected: Bool { enrolment.unprotectedReason != nil }
 
     func signIn() async {
         let token = tokenInput.trimmingCharacters(in: .whitespacesAndNewlines)

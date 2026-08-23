@@ -7,12 +7,42 @@ import Foundation
 import LocalAuthentication
 import Security
 
-/// The per-device API token, held in the Keychain behind a biometric gate.
+/// What the device can put in front of a stored token.
+///
+/// Non-negotiable #2 says tokens live in the Keychain "gated by biometrics".
+/// The requirement underneath that wording is that a token is never left
+/// unprotected — and a passcode-gated Keychain item is not unprotected. So this
+/// prefers biometry, accepts a passcode, and refuses when there is neither.
+///
+/// The distinction is kept everywhere rather than collapsed into a Bool because
+/// the two are not equivalent and the operator is entitled to know which one is
+/// holding their token. See `caveat`.
+nonisolated enum KeychainProtection: String, Equatable, Sendable, Codable {
+    /// `.biometryCurrentSet` — invalidated the moment enrolment changes.
+    case biometrics
+    /// `.devicePasscode` — weaker, and survives an enrolment change.
+    case passcode
+
+    /// Persisted alongside the item so the protection travels with it.
+    ///
+    /// A device that gains Face ID after a passcode-only sign-in still holds a
+    /// passcode-gated item; only re-signing in upgrades it. Recomputing this
+    /// from current device state would therefore report the wrong answer, and
+    /// would pick the wrong `LAPolicy` when unsealing.
+    var marker: Data { Data(rawValue.utf8) }
+
+    init?(marker: Data) {
+        guard let raw = String(data: marker, encoding: .utf8) else { return nil }
+        self.init(rawValue: raw)
+    }
+}
+
+/// The per-device API token, held in the Keychain behind a device-owner gate.
 ///
 /// Non-negotiable #2: never `UserDefaults`, never a plist, never a log line.
-/// The item is written with an access control that demands biometry, so the
-/// token cannot be read back by anything — including this app — without the
-/// operator present.
+/// The item is written with an access control that demands the operator be
+/// present, so the token cannot be read back by anything — including this app —
+/// without them.
 nonisolated struct TokenStore: Sendable {
     let service: String
 
@@ -21,7 +51,8 @@ nonisolated struct TokenStore: Sendable {
     }
 
     enum StoreError: Error, LocalizedError, Equatable {
-        case biometricsUnavailable(String)
+        /// Neither biometry nor a passcode — nothing can protect a token here.
+        case deviceUnprotected(String)
         case authenticationFailed
         case cancelled
         case notFound
@@ -31,10 +62,10 @@ nonisolated struct TokenStore: Sendable {
 
         var errorDescription: String? {
             switch self {
-            case .biometricsUnavailable(let detail):
+            case .deviceUnprotected(let detail):
                 return "This device can't store a token securely: \(detail)"
             case .authenticationFailed:
-                return "Biometric authentication failed."
+                return "Authentication failed."
             case .cancelled:
                 return "Authentication was cancelled."
             case .notFound:
@@ -51,33 +82,101 @@ nonisolated struct TokenStore: Sendable {
 
     private func account(for address: ServerAddress) -> String { "api-token.\(address.pinKey)" }
 
-    /// Whether biometry is usable right now, and why not if it isn't.
-    static func biometryAvailability() -> Result<LABiometryType, StoreError> {
+    // MARK: - What this device can offer
+
+    /// The strongest protection available right now, or why there is none.
+    ///
+    /// Biometry is preferred. A **lockout** is deliberately still counted as
+    /// biometry: `canEvaluatePolicy` refuses after too many failed attempts,
+    /// but the enrolment is intact and the lockout clears on the next passcode
+    /// unlock. Downgrading a token to passcode protection because of a
+    /// temporary lockout would make a transient state permanent.
+    static func availableProtection() -> Result<KeychainProtection, StoreError> {
         let context = LAContext()
-        var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            let detail = error?.localizedDescription ?? "biometrics are not set up"
-            return .failure(.biometricsUnavailable(detail))
+        var biometryError: NSError?
+
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometryError) {
+            return .success(.biometrics)
         }
-        return .success(context.biometryType)
+        if (biometryError as? LAError)?.code == .biometryLockout {
+            return .success(.biometrics)
+        }
+
+        var passcodeError: NSError?
+        if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &passcodeError) {
+            return .success(.passcode)
+        }
+
+        // Report the passcode failure, not the biometric one: "no passcode set"
+        // is the actionable sentence, and "Face ID not enrolled" would send the
+        // operator to fix the wrong thing.
+        let detail = passcodeError?.localizedDescription ?? "no passcode is set"
+        return .failure(.deviceUnprotected(detail))
     }
 
-    /// How to name the biometric method in operator-facing copy.
-    static func biometryDescription() -> String {
-        guard case .success(let type) = biometryAvailability() else { return "biometrics" }
+    /// The biometric method's own name, for copy. `nil` when there is none.
+    ///
+    /// Reported independently of `availableProtection()` because the two answer
+    /// different questions: this one is about hardware and enrolment, that one
+    /// is about what will actually protect the token.
+    static func biometryName() -> String? {
+        let context = LAContext()
+        var error: NSError?
+        let usable = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        guard usable || (error as? LAError)?.code == .biometryLockout else { return nil }
+        return name(of: context.biometryType)
+    }
+
+    /// What this hardware *could* do, enrolled or not.
+    ///
+    /// The difference matters for the passcode-fallback copy. "Face ID isn't
+    /// set up on this device" is a sentence the operator can act on; the same
+    /// sentence on an iPad with no Face ID hardware sends them looking for a
+    /// setting that does not exist. `biometryType` is only meaningful after a
+    /// `canEvaluatePolicy` call, whose result is deliberately ignored here —
+    /// the question is about the hardware, not the enrolment.
+    static func biometryHardwareName() -> String? {
+        let context = LAContext()
+        var error: NSError?
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+        return name(of: context.biometryType)
+    }
+
+    private static func name(of type: LABiometryType) -> String? {
         switch type {
         case .faceID: return "Face ID"
         case .touchID: return "Touch ID"
         case .opticID: return "Optic ID"
-        default: return "biometrics"
+        default: return nil
         }
     }
+
+    /// How to name the gate in operator-facing copy, whatever it turns out to be.
+    static func biometryDescription() -> String {
+        biometryName() ?? String(localized: "your passcode")
+    }
+
+    // MARK: - Reading what is stored
 
     /// True when a token exists, checked without prompting anyone.
     ///
     /// Asks only for attributes: an attribute-only query doesn't unseal the
     /// value, so it doesn't trip the access control.
     func hasToken(for address: ServerAddress) -> Bool {
+        attributes(for: address) != nil
+    }
+
+    /// What is actually guarding the stored token, or `nil` if there isn't one.
+    ///
+    /// An item written before this app understood passcode protection carries no
+    /// marker; those are biometric by construction, so that is the fallback.
+    func storedProtection(for address: ServerAddress) -> KeychainProtection? {
+        guard let attributes = attributes(for: address) else { return nil }
+        guard let marker = attributes[kSecAttrGeneric as String] as? Data else { return .biometrics }
+        return KeychainProtection(marker: marker) ?? .biometrics
+    }
+
+    private func attributes(for address: ServerAddress) -> [String: Any]? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -85,38 +184,54 @@ nonisolated struct TokenStore: Sendable {
             kSecReturnAttributes as String: true,
             kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
         ]
-        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
+        return result as? [String: Any]
     }
 
+    // MARK: - Writing
+
     /// Writes the token, replacing any existing one for this server.
+    ///
+    /// Returns the protection it was actually written with, so the caller can
+    /// tell the operator when they got the weaker one rather than leaving them
+    /// to assume Face ID is involved.
     ///
     /// `.biometryCurrentSet` ties the item to the biometric enrolment as it
     /// stands now: adding a face or fingerprint destroys it, and the operator
     /// signs in again. That costs a re-auth, and buys that enrolling a new face
     /// on an unlocked phone cannot silently inherit access to production DNS.
-    func save(_ token: String, for address: ServerAddress) throws {
+    /// `.devicePasscode` carries no such guarantee — which is exactly why the
+    /// difference is surfaced rather than smoothed over.
+    @discardableResult
+    func save(_ token: String, for address: ServerAddress) throws -> KeychainProtection {
         // Enforced here, not left to callers. SecAccessControlCreateWithFlags
         // will happily mint a `.biometryCurrentSet` policy on a device with no
         // enrolment (the simulator does exactly this), and SecItemAdd then
         // succeeds — storing a token nothing would ever be asked to unlock.
         // Non-negotiable #2 is a property of the store, not of its call sites.
-        if case .failure(let unavailable) = Self.biometryAvailability() {
-            throw unavailable
+        let protection: KeychainProtection
+        switch Self.availableProtection() {
+        case .success(let available): protection = available
+        case .failure(let unprotected): throw unprotected
         }
 
         var accessError: Unmanaged<CFError>?
         guard
             let access = SecAccessControlCreateWithFlags(
                 nil,
+                // Both policies additionally require a passcode to exist at
+                // all, so "no passcode" is refused by the Keychain even if the
+                // check above were ever wrong.
                 kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
-                .biometryCurrentSet,
+                protection == .biometrics ? .biometryCurrentSet : .devicePasscode,
                 &accessError
             )
         else {
             let detail =
                 (accessError?.takeRetainedValue() as Error?)?.localizedDescription
                 ?? "a device passcode must be set"
-            throw StoreError.biometricsUnavailable(detail)
+            throw StoreError.deviceUnprotected(detail)
         }
 
         // Delete first: SecItemUpdate cannot change an item's access control.
@@ -128,30 +243,53 @@ nonisolated struct TokenStore: Sendable {
             kSecAttrAccount as String: account(for: address),
             kSecValueData as String: Data(token.utf8),
             kSecAttrAccessControl as String: access,
+            // Which gate this item was sealed behind. An attribute, not the
+            // value, so it can be read back without a prompt — and so it is
+            // deleted with the item rather than outliving it in a defaults
+            // file that could then disagree with reality.
+            kSecAttrGeneric as String: protection.marker,
         ]
 
         let status = SecItemAdd(attributes as CFDictionary, nil)
         guard status == errSecSuccess else { throw StoreError.keychain(status) }
+        return protection
     }
 
-    /// Reads the token, prompting for biometry.
+    // MARK: - Reading
+
+    /// Reads the token, prompting for whatever is guarding it.
     ///
     /// Authenticates explicitly first, then hands the satisfied context to the
     /// Keychain, so the operator sees one prompt carrying our reason string
     /// rather than a bare system dialog.
+    ///
+    /// The policy is chosen from the item's **own** protection, not from what
+    /// the device can do today. A passcode-satisfied context does not unseal a
+    /// `.biometryCurrentSet` item, so evaluating the wrong one would re-prompt
+    /// or fail for no reason the operator could act on.
     func token(for address: ServerAddress, reason: String) async throws -> String {
+        let protection = storedProtection(for: address) ?? .biometrics
         let context = LAContext()
-        context.localizedFallbackTitle = ""  // No passcode fallback: biometry or nothing.
+
+        let policy: LAPolicy
+        switch protection {
+        case .biometrics:
+            // Biometry or nothing: the item's ACL will not accept a passcode
+            // either, so offering one as a fallback would be a dead end.
+            context.localizedFallbackTitle = ""
+            policy = .deviceOwnerAuthenticationWithBiometrics
+        case .passcode:
+            policy = .deviceOwnerAuthentication
+        }
 
         do {
-            try await context.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+            try await context.evaluatePolicy(policy, localizedReason: reason)
         } catch let error as LAError {
             switch error.code {
             case .userCancel, .appCancel, .systemCancel:
                 throw StoreError.cancelled
             case .biometryNotAvailable, .biometryNotEnrolled, .passcodeNotSet:
-                throw StoreError.biometricsUnavailable(error.localizedDescription)
+                throw StoreError.deviceUnprotected(error.localizedDescription)
             default:
                 throw StoreError.authenticationFailed
             }

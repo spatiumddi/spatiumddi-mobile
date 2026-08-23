@@ -138,15 +138,37 @@ work when they land.
 ### `TokenStore`
 
 Tokens go in the Keychain with `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly`
-and a `.biometryCurrentSet` access control — so the entry is invalidated if the
-device's biometric enrolment changes.
+and the strongest access control the device offers: `.biometryCurrentSet` where
+biometrics are enrolled — so the entry is invalidated if the enrolment changes —
+and `.devicePasscode` where they are not. Neither available means no write at
+all. `KeychainProtection` is that choice, and it is stored as a Keychain
+attribute beside the item so it can be read back without a prompt and cannot
+drift from the item it describes.
 
-The biometric gate is enforced **in the store, not at the call sites**.
+The gate is enforced **in the store, not at the call sites**.
 `SecAccessControlCreateWithFlags` will happily mint a `.biometryCurrentSet` policy
 on a device with no enrolment (the simulator does exactly this), and `SecItemAdd`
 then succeeds — storing a token that nothing would ever be asked to unlock. So
-the store refuses to save at all unless biometry is genuinely available. That
-property belongs to the store; a caller cannot forget it.
+the store picks the policy itself and refuses when there is nothing to pick.
+That property belongs to the store; a caller cannot forget it.
+
+Reading back evaluates the policy matching the **item's** protection, not the
+device's current capability: a passcode-satisfied `LAContext` does not unseal a
+`.biometryCurrentSet` item, and a device that gained Face ID after a
+passcode-only sign-in still holds a passcode-gated item until the next sign-in.
+
+### `ServerRegistry`
+
+Which control planes are configured, what the operator called them, and which
+one is current. Plain `UserDefaults` — none of it is a secret. Each server's
+token stays in its own Keychain item and each certificate pin in its own, both
+already keyed by `pinKey` (`https://host:port`), so several servers means
+several protected items and never a bundle in one blob.
+
+Switching servers is a stage change, which tears `SignedInView` down and takes
+the `ControlPlaneSession` and every screen's fetched rows with it. That is what
+keeps "nothing an inactive server returned may linger" true by construction
+rather than by remembering to clear things.
 
 ### `Redaction`
 
@@ -158,10 +180,10 @@ The only sanctioned way to log a request. `redact()`, `redactHeaderValue()` and
 
 ## Session state
 
-`AppFlowModel` is a four-stage machine:
+`AppFlowModel` is a five-stage machine:
 
 ```
-chooseServer ──connected──▶ signIn ──signedIn──▶ signedIn
+servers ◀──▶ addServer ──connected──▶ signIn ──signedIn──▶ signedIn
      ▲                         ▲                    │
      │                         │              background
   changeServer            sessionRejected           │

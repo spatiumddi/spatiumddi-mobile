@@ -16,10 +16,11 @@
 
 ---
 
-> **Phase 1, and honest about it.** Everything below that says it works has been
-> run against a real control plane. Nothing in this app writes to your network
-> yet — it is a read-only client by design, not by omission. See
-> [Roadmap](#roadmap).
+> **Read-mostly, and honest about it.** Everything below that says it works has
+> been run against a real control plane. The app writes in exactly two places —
+> taking an address in a subnet, and adding a record to a zone — and both are
+> confirmed before anything is sent. Everything else is read-only by design, not
+> by omission. See [Roadmap](#roadmap).
 
 ---
 
@@ -45,12 +46,13 @@ platform, the API and the roadmap all live in
 |---|---|
 | **Overview** | Platform health per component, maintenance/demo banners, server version and update check, unresolved alerts by severity, estate counts, and a size-weighted utilisation figure with the busiest subnets |
 | **Alerts** | Every alert event, most-severe first, filterable by severity and unresolved-only |
-| **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it |
-| **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring |
+| **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it. **Allocate an address**: next-available or a specific one, named and published to DNS in the same request |
+| **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring. **Add a record** — A, AAAA, CNAME, TXT, MX, SRV, NS, PTR, CAA — stated in zone-file form before it is sent |
 | **DHCP** | Server health and HA state, a live ACK/NAK traffic chart, leases with fingerprinted device class, and scopes with their pools and reservations |
 | **Search** | Global search across 16 resource types, grouped by kind, ranked server-side |
 | **Connect** | HTTPS-only, with an explicit certificate-trust flow for the private CAs self-hosted installs actually use |
-| **Sign in** | Per-device `sddi_` API token, by paste or by scanning the enrolment QR code, stored in the Keychain behind Face ID / Touch ID |
+| **Sign in** | Per-device `sddi_` API token, by paste or by scanning the enrolment QR code, stored in the Keychain behind Face ID / Touch ID — or the device passcode, on hardware that has no biometrics, with the trade-off stated rather than silently taken |
+| **Servers** | As many control planes as you run, each with its own name, token and pinned certificate. Switching tears the session down; nothing is shared or aggregated between them |
 
 Navigation is a grouped sidebar — **Monitor / Estate / Tools** — which is a real
 sidebar on iPad and collapses to a pushed list on iPhone.
@@ -66,15 +68,34 @@ Sign-in, dashboard and health, global search, IPAM browse, DNS zone/record view,
 DHCP scope/lease view, alert list. Plus the native niceties: pull-to-refresh,
 biometric unlock, QR enrolment.
 
-### Phase 2 — a small set of writes
+### Phase 2 — a small set of writes 🚧
 
 Acknowledge and resolve alerts, approve change requests, allocate the next free
 IP, toggle maintenance mode. Approvals-on-the-go is the best mobile write story
 there is; the rest of the platform's surface stays desktop work.
 
-Every write will be confirmed. No destructive action lands on a single tap — this
-is an app for changing production DNS and DHCP from a phone, one-handed, possibly
-on a train.
+**Landed:** allocating an address, and creating a DNS record
+([#7](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)).
+
+Every write is confirmed, and the confirmation names the actual thing — the
+address and the subnet, or the record in zone-file form — rather than asking
+"are you sure". No destructive action lands on a single tap: this is an app for
+changing production DNS and DHCP from a phone, one-handed, possibly on a train.
+
+Two behaviours are worth knowing about, because they are the ones that bite:
+
+- **`next-ip-preview` hands out a candidate, not a reservation.** It takes no
+  lock. Two people looking at once see the same address and the first to submit
+  wins; the app says so up front and reports losing the race plainly instead of
+  appearing to have succeeded.
+- **A 409 is two different answers.** "Already allocated" is the end of it. A
+  duplicate hostname, a MAC seen elsewhere, or an address inside a DHCP pool is
+  a *soft* conflict the server will accept once you have read it — so those are
+  shown in full, and continuing waives them explicitly.
+
+Editing and deleting existing records stay out of scope. Creating is
+recoverable; changing a live record from a phone is how this becomes a way to
+cause an outage.
 
 ### Phase 3 — push notifications 🔗 [spatiumddi#912](https://github.com/spatiumddi/spatiumddi/issues/912)
 
@@ -99,9 +120,8 @@ text names internal hostnames and subnets, and this app does not leak those.
 
 ### Also queued
 
-- **[Allocate an IP and create a DNS record](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)** — the two writes a technician actually needs in front of a machine, and the pair that go together: take an address, then give it a name. Every write confirmed, showing exactly what will be created.
-- **[Several servers, switched between](https://github.com/spatiumddi/spatiumddi-mobile/issues/6)** — one control plane per client or per region, each with its own token and pinned certificate. Matters more once writes land: "which server am I on" stops being a convenience question and becomes the one that decides whether a change hits the right estate.
-- **[Passcode-only devices](https://github.com/spatiumddi/spatiumddi-mobile/issues/5)** — the app currently refuses to store a token without enrolled biometrics, which makes it unusable on a device that only has a passcode, including MDM-managed fleets with biometrics disabled. Biometrics should be strongly recommended, not required.
+- **Editing and deleting** IPAM addresses and DNS records — deliberately deferred with the create paths, and wanting a typed confirmation if they land at all.
+- **Fleet-wide lease queries** — "does this MAC have a lease *anywhere*" currently costs one call per DHCP server plus a client-side merge. Filed upstream as part of [spatiumddi#917](https://github.com/spatiumddi/spatiumddi/issues/917) §A2.
 
 ### Phase 4 — Android
 

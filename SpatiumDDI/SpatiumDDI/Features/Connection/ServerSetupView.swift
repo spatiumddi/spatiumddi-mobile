@@ -15,12 +15,15 @@ struct ServerSetupView: View {
     /// to pre-fill and what to say.
     enum Outcome {
         /// Reachable and trusted, but no usable token — sign in as normal.
-        case needsSignIn(ServerAddress, prefill: String?)
+        case needsSignIn(StoredServer, prefill: String?)
         /// A scanned token was validated and sealed; the operator is in.
-        case enrolled(ServerAddress, token: String)
+        case enrolled(StoredServer, token: String)
     }
 
     var onConnected: (Outcome) -> Void = { _ in }
+    /// Back to the server list. `nil` when there is no list to go back to —
+    /// the first run, where cancelling would leave nowhere to be.
+    var onCancel: (() -> Void)?
 
     @State private var model = ConnectionModel()
     @FocusState private var addressFocused: Bool
@@ -39,10 +42,14 @@ struct ServerSetupView: View {
                         .submitLabel(.go)
                         .focused($addressFocused)
                         .onSubmit { Task { await model.connect() } }
+                    TextField("Name (optional)", text: $model.labelInput)
+                        .autocorrectionDisabled()
                 } header: {
                     Text("Server Address")
                 } footer: {
-                    Text("A host name or IP address. Add a port if your control plane doesn't use 443.")
+                    Text(
+                        "A host name or IP address. Add a port if your control plane doesn't use 443. The name is yours — \"Lab\", \"Prod EU\" — and is what the app calls this server from then on."
+                    )
                 }
 
                 Section {
@@ -88,6 +95,13 @@ struct ServerSetupView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if let onCancel {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", role: .cancel, action: onCancel)
+                    }
+                }
+            }
             .sheet(isPresented: $model.isScanning) {
                 TokenScannerView(
                     onScanned: { model.apply($0) },
@@ -121,22 +135,29 @@ struct ServerSetupView: View {
                 } icon: {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
                 }
+                // Only when this button is about to seal a token. Without a
+                // scanned token it merely moves to the sign-in screen, which
+                // says the same thing at the moment it becomes true.
+                if model.canFinishWithScannedToken {
+                    DeviceProtectionNotice(protection: TokenStore.availableProtection())
+                }
                 Button(model.canFinishWithScannedToken ? "Sign In" : "Continue") {
                     Task {
+                        let server = model.server(at: address)
                         guard model.canFinishWithScannedToken else {
-                            onConnected(.needsSignIn(address, prefill: nil))
+                            onConnected(.needsSignIn(server, prefill: nil))
                             return
                         }
                         // The code carried a token, so finish here rather than
                         // handing the operator a form they have already filled.
                         let prefill = model.scannedToken
                         if let token = await model.finishWithScannedToken(for: address) {
-                            onConnected(.enrolled(address, token: token))
+                            onConnected(.enrolled(server, token: token))
                         } else {
                             // A bad code must not dead-end: fall through to
                             // sign-in with the token in place so it can be
                             // corrected, and the reason already on screen.
-                            onConnected(.needsSignIn(address, prefill: prefill))
+                            onConnected(.needsSignIn(server, prefill: prefill))
                         }
                     }
                 }

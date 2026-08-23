@@ -55,7 +55,7 @@ final class SignInFlowUITests: XCTestCase {
         attach(app, "05-sign-in")
 
         // Return to the connect screen and drop the pin, so re-runs start clean.
-        app.buttons["Change Server"].tap()
+        openConnectForm(app)
         enterAddress(app, "localhost:8443")
         forgetTrustedCertificate(app)
     }
@@ -96,7 +96,7 @@ final class SignInFlowUITests: XCTestCase {
         )
 
         // Leave no pin behind.
-        app.buttons["Change Server"].tap()
+        openConnectForm(app)
         enterAddress(app, "localhost:8443")
         forgetTrustedCertificate(app)
     }

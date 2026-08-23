@@ -8,9 +8,10 @@ import SwiftUI
 
 /// DNS browse: group → zone → record.
 ///
-/// Read-only. Phase 1 is a zone/record *view*; authoring records from a phone is
-/// not in #884's Phase 2 list either, and a mistyped record is a production
-/// outage with a TTL attached.
+/// Reading, plus one write: adding a record to a zone. A mistyped record is a
+/// production outage with a TTL attached, so creation goes through its own
+/// sheet, states the record in zone-file form before sending, and stops there —
+/// editing and deleting live records stay desktop work.
 struct DNSBrowseView: View {
     let session: ControlPlaneSession
 
@@ -162,6 +163,8 @@ struct DNSZoneDetailView: View {
     @State private var total = 0
     @State private var query = ""
     @State private var typeFilter: String?
+    @State private var isCreating = false
+    @Environment(Permissions.self) private var permissions
 
     /// Record types present in what has been loaded, most common first.
     private var presentTypes: [String] {
@@ -248,6 +251,31 @@ struct DNSZoneDetailView: View {
         .searchable(text: $query, prompt: "Filter records")
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
+        .toolbar {
+            // A courtesy only — non-negotiable #4. A synthesised zone is
+            // excluded here as well as in the sheet, because the reconciler
+            // owns it and no grant makes a manual record survive the next sync.
+            if zone.tailscaleTenantId == nil,
+                permissions.canWrite("dns_record", "dns_zone", "dns_group", id: zone.id)
+            {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isCreating = true
+                    } label: {
+                        Label("New Record", systemImage: "plus")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $isCreating) {
+            CreateRecordView(
+                session: session,
+                group: group,
+                zone: zone,
+                onCreated: { _ in Task { await fetch() } },
+                onDismiss: { isCreating = false }
+            )
+        }
     }
 
     private func load() { Task { await fetch() } }
