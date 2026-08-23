@@ -7,9 +7,20 @@ import SwiftUI
 
 /// Where an operator points the app at their control plane.
 struct ServerSetupView: View {
-    /// Called once the operator has a reachable, trusted server, with any token
-    /// the same enrolment code supplied.
-    var onConnected: (ServerAddress, String?) -> Void = { _, _ in }
+    /// How far the connect screen got.
+    ///
+    /// Modelled explicitly rather than as a nullable token, because "no token"
+    /// and "a token that failed to enrol" lead to the same screen for opposite
+    /// reasons, and the sign-in screen needs to tell them apart to know whether
+    /// to pre-fill and what to say.
+    enum Outcome {
+        /// Reachable and trusted, but no usable token — sign in as normal.
+        case needsSignIn(ServerAddress, prefill: String?)
+        /// A scanned token was validated and sealed; the operator is in.
+        case enrolled(ServerAddress, token: String)
+    }
+
+    var onConnected: (Outcome) -> Void = { _ in }
 
     @State private var model = ConnectionModel()
     @FocusState private var addressFocused: Bool
@@ -101,7 +112,25 @@ struct ServerSetupView: View {
                 } icon: {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
                 }
-                Button("Continue") { onConnected(address, model.scannedToken) }
+                Button(model.canFinishWithScannedToken ? "Sign In" : "Continue") {
+                    Task {
+                        guard model.canFinishWithScannedToken else {
+                            onConnected(.needsSignIn(address, prefill: nil))
+                            return
+                        }
+                        // The code carried a token, so finish here rather than
+                        // handing the operator a form they have already filled.
+                        let prefill = model.scannedToken
+                        if let token = await model.finishWithScannedToken(for: address) {
+                            onConnected(.enrolled(address, token: token))
+                        } else {
+                            // A bad code must not dead-end: fall through to
+                            // sign-in with the token in place so it can be
+                            // corrected, and the reason already on screen.
+                            onConnected(.needsSignIn(address, prefill: prefill))
+                        }
+                    }
+                }
                 Button("Forget Trusted Certificate", role: .destructive) {
                     model.forgetTrust(for: address)
                 }

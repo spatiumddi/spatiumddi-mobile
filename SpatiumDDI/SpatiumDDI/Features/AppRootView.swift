@@ -24,8 +24,13 @@ struct AppRootView: View {
     private var content: some View {
         switch flow.stage {
         case .chooseServer:
-            ServerSetupView { address, scannedToken in
-                flow.connected(to: address, pendingToken: scannedToken)
+            ServerSetupView { outcome in
+                switch outcome {
+                case .enrolled(let address, let token):
+                    flow.enrolled(with: token, to: address)
+                case .needsSignIn(let address, let prefill):
+                    flow.connected(to: address, pendingToken: prefill)
+                }
             }
 
         case .signIn(let address):
@@ -92,9 +97,14 @@ struct SignedInView: View {
     /// time it runs. State that owns a resource has to outlive a render.
     @State private var session: ControlPlaneSession?
 
-    /// Which section the sidebar has selected. Optional because a collapsed
-    /// split view starts with nothing pushed.
-    @State private var section: AppSection? = .overview
+    /// Which section the sidebar has selected.
+    ///
+    /// Starts as `nil` so signing in lands on the menu rather than pushing
+    /// straight into a screen. On a phone that means the first thing after
+    /// unlocking is a list of where you can go — which is also what makes the
+    /// back button read as "Menu" rather than stranding you one level deep with
+    /// no obvious way to the rest of the app.
+    @State private var section: AppSection?
     @State private var features = FeatureModules()
 
     var body: some View {
@@ -133,7 +143,10 @@ struct SignedInView: View {
                             }
                         }
                     }
-                    .navigationTitle("")
+                    // Titled so the back button from any section reads
+                    // "Menu" — the affordance an operator is looking for when
+                    // they want to go somewhere else.
+                    .navigationTitle("Menu")
                     .navigationBarTitleDisplayMode(.inline)
                 } detail: {
                     // A NavigationStack here is the documented split-view
@@ -141,7 +154,18 @@ struct SignedInView: View {
                     // the layout collapses on a phone, so pushes still get
                     // exactly one back button.
                     NavigationStack {
-                        detail(for: section, session: session)
+                        if let section {
+                            detail(for: section, session: session)
+                        } else {
+                            // Only ever seen on iPad, where the detail column
+                            // is always on screen. A collapsed split view shows
+                            // the sidebar itself instead of pushing this.
+                            ContentUnavailableView {
+                                BrandLockup(markSize: 64)
+                            } description: {
+                                Text("Choose a section to begin.")
+                            }
+                        }
                     }
                 }
             } else {
@@ -166,9 +190,9 @@ struct SignedInView: View {
     }
 
     @ViewBuilder
-    private func detail(for section: AppSection?, session: ControlPlaneSession) -> some View {
+    private func detail(for section: AppSection, session: ControlPlaneSession) -> some View {
         switch section {
-        case .overview, nil:
+        case .overview:
             OverviewView(session: session)
         case .alerts:
             AlertsView(session: session)

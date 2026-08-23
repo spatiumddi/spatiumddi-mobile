@@ -78,4 +78,44 @@ struct AppFlowModelTests {
         #expect(flow.stage == .chooseServer)
         #expect(flow.token == nil)
     }
+
+    /// Scanning a code that carries both server and token should land the
+    /// operator inside, not on a pre-filled form. They chose which code to
+    /// scan and pressed the button; a second confirmation of the same decision
+    /// is ceremony.
+    @Test("A scanned, already-enrolled token goes straight to signed in")
+    func enrolledSkipsSignIn() {
+        let (flow, address) = isolatedFlow()
+
+        flow.enrolled(with: "sddi_abc", to: address)
+
+        #expect(flow.stage == .signedIn(address))
+        #expect(flow.token == "sddi_abc")
+        #expect(flow.pendingToken == nil)
+    }
+
+    /// The fallback matters as much as the happy path: a code whose token the
+    /// server rejects must land on sign-in with the token in place, so it can
+    /// be corrected rather than re-scanned.
+    @Test("A token that failed to enrol is carried to sign-in for correction")
+    func failedEnrolmentPrefills() {
+        let (flow, address) = isolatedFlow()
+
+        flow.connected(to: address, pendingToken: "sddi_bad")
+
+        #expect(flow.stage == .signIn(address))
+        #expect(flow.pendingToken == "sddi_bad")
+        #expect(flow.token == nil, "a rejected token is not a session")
+    }
+
+    @Test("Changing server drops a carried token")
+    func changingServerDropsPendingToken() {
+        let (flow, address) = isolatedFlow()
+        flow.connected(to: address, pendingToken: "sddi_abc")
+
+        flow.changeServer()
+
+        #expect(flow.pendingToken == nil, "a token scanned for one server must not follow to another")
+        #expect(flow.stage == .chooseServer)
+    }
 }

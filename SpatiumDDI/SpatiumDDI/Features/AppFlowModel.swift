@@ -59,6 +59,19 @@ final class AppFlowModel {
     /// until the operator signs in with it.
     private(set) var pendingToken: String?
 
+    /// A scanned enrolment code carried a token that has already been
+    /// validated against the server and sealed in the Keychain.
+    ///
+    /// Straight to signed-in. The operator picked which code to scan and
+    /// pressed the button; making them confirm an opaque `sddi_…` string
+    /// afterwards is ceremony, not consent.
+    func enrolled(with token: String, to address: ServerAddress) {
+        remember(address)
+        self.token = token
+        pendingToken = nil
+        stage = .signedIn(address)
+    }
+
     func connected(to address: ServerAddress, pendingToken: String? = nil) {
         remember(address)
         self.pendingToken = pendingToken

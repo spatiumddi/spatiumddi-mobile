@@ -28,8 +28,7 @@ final class SignInModel {
     var isScanning = false
 
     let address: ServerAddress
-    private let probe: ControlPlaneProbe
-    private let tokens: TokenStore
+    private let enrolment: TokenEnrolment
     private let trust: TrustStore
     private let onSignedIn: (String) -> Void
 
@@ -49,8 +48,7 @@ final class SignInModel {
             self.tokenInput = prefilledToken
             self.scanNotice = "Token filled in from the code you scanned. Review it, then sign in."
         }
-        self.probe = probe
-        self.tokens = tokens
+        self.enrolment = TokenEnrolment(probe: probe, tokens: tokens)
         self.trust = trust
         self.onSignedIn = onSignedIn
     }
@@ -104,54 +102,21 @@ final class SignInModel {
 
     var biometryDescription: String { TokenStore.biometryDescription() }
 
-    var biometryUnavailableReason: String? {
-        if case .failure(let error) = TokenStore.biometryAvailability() {
-            return error.localizedDescription
-        }
-        return nil
-    }
+    var biometryUnavailableReason: String? { enrolment.biometryUnavailableReason }
 
     func signIn() async {
         let token = tokenInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !token.isEmpty else { return }
 
-        // Refuse before writing anything we couldn't protect properly.
-        if let reason = biometryUnavailableReason {
-            state = .failed(reason)
-            return
-        }
-
         state = .validating
-        switch await probe.validateToken(token, for: address) {
-        case .authenticated, .forbidden:
-            // .forbidden means the credential is good but this account can't read
-            // its own permissions — an authorisation problem to surface later,
-            // not a reason to reject a working token here.
-            await store(token)
-
-        case .rejected:
-            state = .failed("The server rejected that token. Check it hasn't been revoked or expired.")
-
-        case .maintenance:
-            state = .failed("\(address.displayName) is in a change window. Try again once it's finished.")
-
-        case .trustRequired:
-            state = .failed("The server's certificate changed since you connected. Reconnect to review it.")
-
-        case .failed(let error):
-            state = .failed(error.localizedDescription)
-        }
-    }
-
-    private func store(_ token: String) async {
-        state = .storing
-        do {
-            try tokens.save(token, for: address)
+        switch await enrolment.enrol(token, for: address) {
+        case .enrolled:
             tokenInput = ""
             state = .idle
             onSignedIn(token)
-        } catch {
-            state = .failed(error.localizedDescription)
+        case .failed(let message):
+            state = .failed(message)
         }
     }
+
 }

@@ -39,6 +39,7 @@ final class ConnectionModel {
     /// What a scanned code said, shown so the operator sees what it configured.
     private(set) var scanNotice: String?
     /// Carried to sign-in so one scan configures the whole connection.
+    /// The token a scanned code carried, until it has been used.
     private(set) var scannedToken: String?
     private var expectedFingerprint: Data?
 
@@ -70,15 +71,55 @@ final class ConnectionModel {
         var carried = ["server"]
         if payload.token != nil { carried.append("token") }
         if payload.certificateFingerprint != nil { carried.append("certificate fingerprint") }
-        scanNotice = "Scanned code supplied the \(carried.joined(separator: ", ")). Review, then connect."
+        let supplied = "Scanned code supplied the \(carried.joined(separator: ", "))."
+        // Says what the button will actually do. With a token the next tap
+        // signs in; without one it only reaches the server.
+        scanNotice =
+            payload.token == nil
+            ? "\(supplied) Connect to continue."
+            : "\(supplied) Signing in will finish setting this device up."
     }
 
     private let probe: ControlPlaneProbe
     private let trustStore: TrustStore
+    private let enrolment: TokenEnrolment
 
     init(trustStore: TrustStore = TrustStore()) {
         self.trustStore = trustStore
         self.probe = ControlPlaneProbe(trustStore: trustStore)
+        self.enrolment = TokenEnrolment(probe: ControlPlaneProbe(trustStore: trustStore))
+    }
+
+    /// Whether this connection can be completed without a separate sign-in.
+    ///
+    /// True once a scanned code has supplied a token and the server has been
+    /// reached and trusted — at which point asking the operator to review an
+    /// opaque `sddi_…` string and press Sign In is ceremony, not consent. They
+    /// chose which code to scan and pressed Connect; that *is* the decision.
+    /// The parts that are real judgements — approving an unknown certificate,
+    /// unlocking the Keychain — still happen.
+    var canFinishWithScannedToken: Bool {
+        scannedToken != nil
+    }
+
+    /// Validates the scanned token and seals it, so the operator lands signed
+    /// in rather than on a form they have already filled.
+    ///
+    /// Returns the token on success. On failure the caller falls through to the
+    /// sign-in screen, where the message is shown and the token can be fixed by
+    /// hand — a bad code must not become a dead end.
+    func finishWithScannedToken(for address: ServerAddress) async -> String? {
+        guard let token = scannedToken else { return nil }
+        state = .connecting
+        switch await enrolment.enrol(token, for: address) {
+        case .enrolled:
+            scannedToken = nil
+            state = .connected(address, status: 200)
+            return token
+        case .failed(let message):
+            state = .failed(message)
+            return nil
+        }
     }
 
     var isBusy: Bool { state == .connecting }

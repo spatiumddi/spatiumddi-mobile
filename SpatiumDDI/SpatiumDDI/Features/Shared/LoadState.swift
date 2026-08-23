@@ -26,7 +26,22 @@ struct LoadStateView<Value, Content: View>: View {
 
     var body: some View {
         switch state {
-        case .idle, .loading:
+        case .idle:
+            // Not started — or started and cancelled before it finished, which
+            // is the same thing from here. Either way the view is on screen
+            // with nothing to show, so start a fetch.
+            //
+            // Without this, a cancelled task is an indefinite spinner that
+            // nothing ever re-triggers: `.idle` looks exactly like `.loading`,
+            // and the owning view's `.task` has already run for this instance
+            // so it will not run again. A screen that spins forever is worse
+            // than one that reports a failure.
+            ProgressView()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .listRowSeparator(.hidden)
+                .task { retry() }
+
+        case .loading:
             ProgressView().frame(maxWidth: .infinity, alignment: .center).listRowSeparator(.hidden)
 
         case .loaded(let value):
