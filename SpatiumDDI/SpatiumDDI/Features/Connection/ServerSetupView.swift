@@ -7,8 +7,9 @@ import SwiftUI
 
 /// Where an operator points the app at their control plane.
 struct ServerSetupView: View {
-    /// Called once the operator has a reachable, trusted server.
-    var onConnected: (ServerAddress) -> Void = { _ in }
+    /// Called once the operator has a reachable, trusted server, with any token
+    /// the same enrolment code supplied.
+    var onConnected: (ServerAddress, String?) -> Void = { _, _ in }
 
     @State private var model = ConnectionModel()
     @FocusState private var addressFocused: Bool
@@ -32,6 +33,22 @@ struct ServerSetupView: View {
                 }
 
                 Section {
+                    // First thing on the first screen, because the enrolment
+                    // code carries the server address as well as the token —
+                    // typing a hostname on a phone is the worst part of setting
+                    // this up, and the code removes it.
+                    Button {
+                        addressFocused = false
+                        model.isScanning = true
+                    } label: {
+                        Label("Scan Enrolment Code", systemImage: "qrcode.viewfinder")
+                    }
+                    if let notice = model.scanNotice {
+                        Text(notice).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
                     Button {
                         addressFocused = false
                         Task { await model.connect() }
@@ -48,6 +65,12 @@ struct ServerSetupView: View {
                 statusSection
             }
             .navigationTitle("Connect")
+            .sheet(isPresented: $model.isScanning) {
+                TokenScannerView(
+                    onScanned: { model.apply($0) },
+                    onCancel: { model.isScanning = false }
+                )
+            }
             .sheet(item: $model.pendingTrust) { pending in
                 CertificateTrustSheet(
                     pending: pending,
@@ -75,7 +98,7 @@ struct ServerSetupView: View {
                 } icon: {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
                 }
-                Button("Continue") { onConnected(address) }
+                Button("Continue") { onConnected(address, model.scannedToken) }
                 Button("Forget Trusted Certificate", role: .destructive) {
                     model.forgetTrust(for: address)
                 }

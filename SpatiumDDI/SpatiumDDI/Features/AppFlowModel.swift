@@ -52,13 +52,22 @@ final class AppFlowModel {
 
     var biometryDescription: String { TokenStore.biometryDescription() }
 
-    func connected(to address: ServerAddress) {
+    /// A token an enrolment code supplied alongside the server address.
+    ///
+    /// Held only until sign-in reads it. It is not a stored credential — it has
+    /// not been validated or accepted yet, and it never reaches the Keychain
+    /// until the operator signs in with it.
+    private(set) var pendingToken: String?
+
+    func connected(to address: ServerAddress, pendingToken: String? = nil) {
         remember(address)
+        self.pendingToken = pendingToken
         stage = tokens.hasToken(for: address) ? .locked(address, message: nil) : .signIn(address)
     }
 
     func signedIn(with token: String, to address: ServerAddress) {
         self.token = token
+        pendingToken = nil
         stage = .signedIn(address)
     }
 
@@ -107,12 +116,14 @@ final class AppFlowModel {
     func signOut() {
         let address = currentAddress
         token = nil
+        pendingToken = nil
         if let address { try? tokens.delete(for: address) }
         stage = address.map { .signIn($0) } ?? .chooseServer
     }
 
     func changeServer() {
         token = nil
+        pendingToken = nil
         stage = .chooseServer
     }
 

@@ -22,11 +22,56 @@ final class ConnectionModel {
         let id = UUID()
         let certificate: CertificateInfo
         let address: ServerAddress
+        /// Whether the presented certificate matches the fingerprint carried by
+        /// a scanned enrolment code. `nil` when no code supplied one.
+        ///
+        /// Evidence, not authority. A match means the certificate is the one the
+        /// server itself printed into the code, which is far better than an
+        /// operator eyeballing 64 hex characters — but the code is still
+        /// attacker-supplied, so it informs the decision rather than making it.
+        var matchesScannedCode: Bool?
     }
 
     var addressInput: String = ""
     private(set) var state: State = .idle
     var pendingTrust: PendingTrust?
+    var isScanning = false
+    /// What a scanned code said, shown so the operator sees what it configured.
+    private(set) var scanNotice: String?
+    /// Carried to sign-in so one scan configures the whole connection.
+    private(set) var scannedToken: String?
+    private var expectedFingerprint: Data?
+
+    /// Takes what a QR code claimed, and acts on none of it silently.
+    ///
+    /// A code is whatever was printed on the thing the camera pointed at — a
+    /// sticker on a rack door is not an authorisation. So it fills the address
+    /// field and carries a token forward, but it never connects on its own and
+    /// never pins a certificate: the operator still confirms both.
+    func apply(_ payload: EnrolmentPayload) {
+        isScanning = false
+        state = .idle
+
+        guard let address = payload.address else {
+            // A token-only code is the shape the web console emits when it does
+            // not know its own external URL. It is useful at sign-in, but there
+            // is nothing here for it to configure.
+            scanNotice = nil
+            state = .failed(
+                "That code carries a token but no server address. Enter the address, then scan it again on the next screen."
+            )
+            return
+        }
+
+        addressInput = address.displayName
+        scannedToken = payload.token
+        expectedFingerprint = payload.certificateFingerprint
+
+        var carried = ["server"]
+        if payload.token != nil { carried.append("token") }
+        if payload.certificateFingerprint != nil { carried.append("certificate fingerprint") }
+        scanNotice = "Scanned code supplied the \(carried.joined(separator: ", ")). Review, then connect."
+    }
 
     private let probe: ControlPlaneProbe
     private let trustStore: TrustStore
@@ -87,7 +132,11 @@ final class ConnectionModel {
             state = .maintenance(address, retryAfter: retryAfter)
         case .trustRequired(let certificate):
             state = .idle
-            pendingTrust = PendingTrust(certificate: certificate, address: address)
+            pendingTrust = PendingTrust(
+                certificate: certificate,
+                address: address,
+                matchesScannedCode: expectedFingerprint.map { $0 == certificate.fingerprint }
+            )
         case .failed(let error):
             state = .failed(error.localizedDescription)
         }

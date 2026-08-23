@@ -35,12 +35,20 @@ final class SignInModel {
 
     init(
         address: ServerAddress,
+        prefilledToken: String? = nil,
         probe: ControlPlaneProbe = ControlPlaneProbe(),
         tokens: TokenStore = TokenStore(),
         trust: TrustStore = TrustStore(),
         onSignedIn: @escaping (String) -> Void
     ) {
         self.address = address
+        // Filled, never submitted. A code scanned on the connect screen has
+        // still not been seen by the operator, and #6's spirit is that nothing
+        // consequential happens without them looking at it.
+        if let prefilledToken {
+            self.tokenInput = prefilledToken
+            self.scanNotice = "Token filled in from the code you scanned. Review it, then sign in."
+        }
         self.probe = probe
         self.tokens = tokens
         self.trust = trust

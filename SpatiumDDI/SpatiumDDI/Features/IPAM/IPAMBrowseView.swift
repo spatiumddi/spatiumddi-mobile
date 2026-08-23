@@ -201,6 +201,18 @@ struct IPAMAddressesView: View {
     let subnet: Components.Schemas.SubnetResponse
 
     @State private var state: LoadState<[Components.Schemas.IPAddressResponse]> = .idle
+    @State private var query = ""
+
+    private var visible: [Components.Schemas.IPAddressResponse] {
+        guard case .loaded(let addresses) = state else { return [] }
+        guard !query.isEmpty else { return addresses }
+        return addresses.filter {
+            $0.address.localizedCaseInsensitiveContains(query)
+                || ($0.hostname ?? "").localizedCaseInsensitiveContains(query)
+                || ($0.fqdn ?? "").localizedCaseInsensitiveContains(query)
+                || ($0.macAddress ?? "").localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
         List {
@@ -218,24 +230,18 @@ struct IPAMAddressesView: View {
             Section("Addresses") {
                 LoadStateView(
                     state: state, emptyMessage: "No addresses are recorded in this subnet.", retry: load
-                ) { addresses in
-                    ForEach(addresses, id: \.id) { address in
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text(address.address).font(.body.monospaced())
-                                Spacer()
-                                Text(address.status).font(.caption2).foregroundStyle(.secondary)
-                            }
-                            // An unnamed address comes back as "" rather than
-                            // null, so `??` alone would hide an fqdn that is
-                            // present.
-                            if let name = [address.hostname, address.fqdn]
-                                .compactMap({ $0 }).first(where: { !$0.isEmpty })
-                            {
-                                Text(name).font(.caption).foregroundStyle(.secondary)
-                            }
-                            if let mac = address.macAddress, !mac.isEmpty {
-                                Text(mac).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                ) { _ in
+                    if visible.isEmpty {
+                        NoMatchesView(
+                            query: query,
+                            filterDescription: "No address matches that IP, hostname or MAC."
+                        )
+                    } else {
+                        ForEach(visible, id: \.id) { address in
+                            NavigationLink {
+                                IPAMAddressDetailView(session: session, address: address, subnet: subnet)
+                            } label: {
+                                AddressRow(address: address)
                             }
                         }
                     }
@@ -244,6 +250,7 @@ struct IPAMAddressesView: View {
         }
         .navigationTitle(subnet.name.isEmpty ? subnet.network : subnet.name)
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
     }
@@ -252,19 +259,42 @@ struct IPAMAddressesView: View {
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             let response = try await session.client
                 .listAddressesApiV1IpamSubnetsSubnetIdAddressesGet(path: .init(subnetId: subnet.id))
             switch response {
             case .ok(let ok):
-                state = .loaded(try ok.body.json)
+                return try ok.body.json
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
+                throw APIStatusError(status: 422)
             case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: statusCode)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
+        }
+    }
+}
+
+/// One row in the address list.
+private struct AddressRow: View {
+    let address: Components.Schemas.IPAddressResponse
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(address.address).font(.body.monospaced())
+                Spacer()
+                Text(address.status).font(.caption2).foregroundStyle(.secondary)
+            }
+            // An unnamed address comes back as "" rather than null, so `??`
+            // alone would hide an fqdn that is present.
+            if let name = [address.hostname, address.fqdn]
+                .compactMap({ $0 }).first(where: { !$0.isEmpty })
+            {
+                Text(name).font(.caption).foregroundStyle(.secondary)
+            }
+            if let mac = address.macAddress, !mac.isEmpty {
+                Text(mac).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+            }
         }
     }
 }

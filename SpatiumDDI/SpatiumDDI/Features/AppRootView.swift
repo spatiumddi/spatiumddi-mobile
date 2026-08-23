@@ -24,11 +24,13 @@ struct AppRootView: View {
     private var content: some View {
         switch flow.stage {
         case .chooseServer:
-            ServerSetupView { address in flow.connected(to: address) }
+            ServerSetupView { address, scannedToken in
+                flow.connected(to: address, pendingToken: scannedToken)
+            }
 
         case .signIn(let address):
             SignInView(
-                model: SignInModel(address: address) { token in
+                model: SignInModel(address: address, prefilledToken: flow.pendingToken) { token in
                     flow.signedIn(with: token, to: address)
                 },
                 onChangeServer: { flow.changeServer() }
@@ -90,45 +92,33 @@ struct SignedInView: View {
     /// time it runs. State that owns a resource has to outlive a render.
     @State private var session: ControlPlaneSession?
 
+    /// Which section the sidebar has selected. Optional because a collapsed
+    /// split view starts with nothing pushed.
+    @State private var section: AppSection? = .overview
+
     var body: some View {
         Group {
             if let session {
-                TabView {
-                    Tab("Overview", systemImage: "gauge.with.dots.needle.33percent") {
-                        NavigationStack { OverviewView(session: session) }
-                    }
-                    Tab("Alerts", systemImage: "bell") {
-                        NavigationStack { AlertsView(session: session) }
-                    }
-                    Tab("IPAM", systemImage: "square.grid.3x3") {
-                        NavigationStack { IPAMBrowseView(session: session) }
-                    }
-                    Tab("DNS", systemImage: "globe") {
-                        NavigationStack { DNSBrowseView(session: session) }
-                    }
-                    Tab("DHCP", systemImage: "arrow.left.arrow.right") {
-                        NavigationStack { DHCPBrowseView(session: session) }
-                    }
-                    Tab("Server", systemImage: "gear") {
-                        NavigationStack {
-                            ServerDetailView(
-                                address: session.address,
-                                session: session,
-                                onSignOut: onSignOut,
-                                onChangeServer: onChangeServer
-                            )
+                NavigationSplitView {
+                    List(selection: $section) {
+                        ForEach(AppSection.Group.allCases) { group in
+                            Section(group.rawValue) {
+                                ForEach(group.sections) { item in
+                                    Label(item.title, systemImage: item.symbol).tag(item)
+                                }
+                            }
                         }
                     }
-                    // The search role puts this in the system's own search slot
-                    // rather than making it the seventh thing in a "More" list.
-                    Tab(role: .search) {
-                        NavigationStack { SearchView(session: session) }
+                    .navigationTitle("SpatiumDDI")
+                } detail: {
+                    // A NavigationStack here is the documented split-view
+                    // pattern: SwiftUI merges it with the sidebar's stack when
+                    // the layout collapses on a phone, so pushes still get
+                    // exactly one back button.
+                    NavigationStack {
+                        detail(for: section, session: session)
                     }
                 }
-                // Six tabs plus search overflow into "More" on a phone; on an
-                // iPad the same declaration becomes a sidebar, which is where a
-                // surface this wide actually wants to be.
-                .tabViewStyle(.sidebarAdaptable)
             } else {
                 ProgressView()
             }
@@ -143,6 +133,31 @@ struct SignedInView: View {
         .onDisappear {
             session?.invalidate()
             session = nil
+        }
+    }
+
+    @ViewBuilder
+    private func detail(for section: AppSection?, session: ControlPlaneSession) -> some View {
+        switch section {
+        case .overview, nil:
+            OverviewView(session: session)
+        case .alerts:
+            AlertsView(session: session)
+        case .ipam:
+            IPAMBrowseView(session: session)
+        case .dns:
+            DNSBrowseView(session: session)
+        case .dhcp:
+            DHCPBrowseView(session: session)
+        case .search:
+            SearchView(session: session)
+        case .server:
+            ServerDetailView(
+                address: session.address,
+                session: session,
+                onSignOut: onSignOut,
+                onChangeServer: onChangeServer
+            )
         }
     }
 }
