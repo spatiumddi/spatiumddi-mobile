@@ -83,9 +83,13 @@ struct DNSZonesView: View {
 
     var body: some View {
         List {
-            if case .loaded = state {
+            // Routed through LoadStateView rather than checking `.loaded` by
+            // hand: it already distinguishes a group with no zones from a
+            // filter that matched none, and doing it manually is what made an
+            // empty group render as a failed search.
+            LoadStateView(state: state, emptyMessage: "This group has no zones.", retry: load) { _ in
                 if visible.isEmpty {
-                    ContentUnavailableView.search(text: query)
+                    NoMatchesView(query: query, filterDescription: "No zone matches this filter.")
                 } else {
                     ForEach(visible, id: \.id) { zone in
                         NavigationLink {
@@ -94,10 +98,6 @@ struct DNSZonesView: View {
                             ZoneRow(zone: zone)
                         }
                     }
-                }
-            } else {
-                LoadStateView(state: state, emptyMessage: "This group has no zones.", retry: load) { _ in
-                    EmptyView()
                 }
             }
         }
@@ -167,7 +167,13 @@ struct DNSZoneDetailView: View {
     private var presentTypes: [String] {
         guard case .loaded(let records) = state else { return [] }
         return Dictionary(grouping: records, by: \.recordType)
-            .sorted { ($0.value.count, $1.key) > ($1.value.count, $0.key) }
+            .sorted { left, right in
+                // Commonest first, ties broken by name so the chip order is
+                // stable across refreshes — a dictionary's own order is not.
+                left.value.count == right.value.count
+                    ? left.key < right.key
+                    : left.value.count > right.value.count
+            }
             .map(\.key)
     }
 
@@ -219,19 +225,11 @@ struct DNSZoneDetailView: View {
             }
 
             Section {
-                if case .loaded = state {
+                LoadStateView(state: state, emptyMessage: "This zone has no records.", retry: load) { _ in
                     if visible.isEmpty {
-                        ContentUnavailableView(
-                            "No matching records",
-                            systemImage: "line.3.horizontal.decrease.circle",
-                            description: Text("No record matches this filter.")
-                        )
+                        NoMatchesView(query: query, filterDescription: "No record matches this filter.")
                     } else {
                         ForEach(visible, id: \.id) { RecordRow(record: $0) }
-                    }
-                } else {
-                    LoadStateView(state: state, emptyMessage: "This zone has no records.", retry: load) { _ in
-                        EmptyView()
                     }
                 }
             } header: {
@@ -269,8 +267,14 @@ struct DNSZoneDetailView: View {
             case .ok(let ok):
                 let page = try ok.body.json
                 total = page.total
-                return page.items.sorted {
-                    ($0.name, $0.recordType) < ($1.name, $1.recordType)
+                // Numeric-aware, like every other list here: plain `<` puts
+                // `web10` before `web2`, which is wrong in a zone full of
+                // numbered hosts.
+                return page.items.sorted { left, right in
+                    let byName = left.name.localizedStandardCompare(right.name)
+                    return byName == .orderedSame
+                        ? left.recordType < right.recordType
+                        : byName == .orderedAscending
                 }
             case .unprocessableContent:
                 throw APIStatusError(status: 422)

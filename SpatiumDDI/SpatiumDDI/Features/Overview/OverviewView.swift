@@ -29,8 +29,12 @@ struct OverviewView: View {
         }
         .navigationTitle("Overview")
         .refreshable { await model?.refresh() }
-        .task {
-            if model == nil { model = OverviewModel(session: session) }
+        // Rebuilt when the session is, not merely built once. A session is
+        // invalidated and replaced when the token changes, and a model still
+        // holding the old one would make every call through a dead URLSession
+        // while looking, from here, like it had simply loaded nothing.
+        .task(id: ObjectIdentifier(session)) {
+            if model?.session !== session { model = OverviewModel(session: session) }
             if case .idle = model?.health { await model?.refresh() }
         }
     }
@@ -246,6 +250,14 @@ private struct DNSSummarySection: View {
                 }
                 .listRowInsets(.init(top: 8, leading: 12, bottom: 8, trailing: 12))
 
+                if totals.zones == nil {
+                    Text(
+                        "Zone totals are unavailable — at least one DNS group could not be listed, which may be a permission this account doesn't have."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
             case .failed(let message):
                 Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
             }
@@ -272,9 +284,7 @@ private struct DHCPSummarySection: View {
                         label: "Unhealthy",
                         tint: totals.unhealthy > 0 ? .red : .secondary
                     )
-                    if let leases = totals.activeLeases {
-                        CountTile(value: leases, label: "Leases", tint: .teal)
-                    }
+                    CountTile(value: totals.activeLeases, label: "Leases", tint: .teal)
                 }
                 .listRowInsets(.init(top: 8, leading: 12, bottom: 8, trailing: 12))
 
@@ -298,16 +308,23 @@ private struct DHCPSummarySection: View {
 // MARK: - Shared
 
 /// One KPI: a number and what it counts.
+///
+/// An unknown value renders as a dash and keeps its tile, rather than the tile
+/// disappearing. A missing tile reads as "this platform has no such thing";
+/// a dash reads as "this number could not be established", which is what
+/// actually happened.
 private struct CountTile: View {
-    let value: Int
+    let value: Int?
     let label: String
     let tint: Color
 
+    private var text: String { value?.formatted() ?? "—" }
+
     var body: some View {
         VStack(spacing: 2) {
-            Text(value.formatted())
+            Text(text)
                 .font(.title2.weight(.semibold).monospacedDigit())
-                .foregroundStyle(tint)
+                .foregroundStyle(value == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(tint))
                 .contentTransition(.numericText())
             Text(label)
                 .font(.caption2)
@@ -317,6 +334,6 @@ private struct CountTile: View {
         .padding(.vertical, 8)
         .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(value) \(label)")
+        .accessibilityLabel(value.map { "\($0) \(label)" } ?? "\(label) unavailable")
     }
 }

@@ -194,6 +194,18 @@ struct ServerDetailView: View {
                     if permissions.isSuperadmin {
                         Label("Superadmin — every action on every resource.", systemImage: "key.fill")
                             .foregroundStyle(.orange)
+                    } else if permissions.grants.isEmpty {
+                        // LoadStateView's empty message cannot fire here — the
+                        // response is an object, not a collection — so an
+                        // account with no grants would otherwise get a blank
+                        // section and no explanation for why every other screen
+                        // is empty too.
+                        Label(
+                            "This account has no grants. Most screens will stay empty until an administrator gives it read access.",
+                            systemImage: "lock.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                     } else {
                         ForEach(Array(permissions.grants.enumerated()), id: \.offset) { _, grant in
                             LabeledContent(grant.resourceType) {

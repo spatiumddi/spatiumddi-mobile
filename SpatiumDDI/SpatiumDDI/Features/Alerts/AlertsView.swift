@@ -56,24 +56,26 @@ struct AlertsView: View {
             }
 
             Section {
-                if case .loaded = state {
+                // "Nothing is firing" and "nothing matches the severity you
+                // picked" are different answers, and only the first one is good
+                // news. LoadStateView owns the former; the chip filter can only
+                // produce the latter.
+                LoadStateView(
+                    state: state,
+                    emptyMessage: openOnly
+                        ? "No unresolved alerts on this control plane."
+                        : "No alerts recorded.",
+                    retry: load
+                ) { _ in
                     if events.isEmpty {
-                        ContentUnavailableView(
-                            severityFilter == nil
-                                ? "Nothing firing" : "No \(severityFilter!.label.lowercased()) alerts",
-                            systemImage: "checkmark.circle",
-                            description: Text(
-                                openOnly
-                                    ? "No unresolved alerts on this control plane."
-                                    : "No alerts recorded."
-                            )
+                        NoMatchesView(
+                            query: "",
+                            filterDescription: severityFilter.map {
+                                "No \($0.label.lowercased()) alerts in this list."
+                            } ?? "No alert matches this filter."
                         )
                     } else {
                         ForEach(events, id: \.id) { AlertRow(event: $0) }
-                    }
-                } else {
-                    LoadStateView(state: state, emptyMessage: "No alerts recorded.", retry: load) { _ in
-                        EmptyView()
                     }
                 }
             }

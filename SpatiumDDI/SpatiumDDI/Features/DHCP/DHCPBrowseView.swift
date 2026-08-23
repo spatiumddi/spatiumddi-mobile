@@ -203,26 +203,19 @@ struct DHCPServerDetailView: View {
             }
 
             Section {
-                if case .loaded = leases {
+                LoadStateView(
+                    state: leases,
+                    emptyMessage: "This server is not holding any leases.",
+                    retry: { Task { await fetchLeases() } }
+                ) { _ in
                     if visibleLeases.isEmpty {
-                        ContentUnavailableView(
-                            query.isEmpty ? "No leases" : "No matching leases",
-                            systemImage: "tray",
-                            description: Text(
-                                query.isEmpty
-                                    ? "This server is not holding any leases."
-                                    : "No lease matches that address, MAC or hostname."
-                            )
+                        NoMatchesView(
+                            query: query,
+                            filterDescription: "No lease matches that address, MAC or hostname."
                         )
                     } else {
                         ForEach(visibleLeases, id: \.id) { LeaseRow(lease: $0) }
                     }
-                } else {
-                    LoadStateView(
-                        state: leases,
-                        emptyMessage: "This server is not holding any leases.",
-                        retry: { Task { await fetchLeases() } }
-                    ) { _ in EmptyView() }
                 }
             } header: {
                 if case .loaded(let loaded) = leases, leaseTotal > loaded.count {

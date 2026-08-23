@@ -30,12 +30,17 @@ extension LoadState {
             return .loaded(try await operation())
         } catch let error as APIStatusError {
             return .failed(APIErrorMessage.describe(status: error.status))
-        } catch is CancellationError {
-            // A cancelled fetch is a view going away or a refresh superseding
-            // this one. Reporting it as a failure would flash an error over a
-            // screen the operator has already left.
-            return .idle
         } catch {
+            // A cancelled fetch is a view going away or a refresh superseding
+            // this one, and reporting it would flash an error over a screen the
+            // operator has already left.
+            //
+            // Checked on the task rather than by matching `CancellationError`:
+            // the request is in URLSession by the time cancellation lands, so
+            // what actually comes back is `URLError.cancelled` wrapped in a
+            // `ClientError` — which the type match misses entirely, leaving the
+            // word "cancelled" rendered as a failure.
+            if Task.isCancelled { return .idle }
             return .failed(APIErrorMessage.describe(error))
         }
     }

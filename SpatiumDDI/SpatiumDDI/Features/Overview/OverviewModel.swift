@@ -61,7 +61,9 @@ nonisolated struct PlatformHealth: Sendable, Equatable {
 @MainActor
 @Observable
 final class OverviewModel {
-    private let session: ControlPlaneSession
+    /// Not private: the view compares it to decide whether the model it holds
+    /// still belongs to the current session.
+    let session: ControlPlaneSession
 
     var health: LoadState<PlatformHealth> = .idle
     var version: LoadState<Components.Schemas.VersionResponse> = .idle
@@ -100,8 +102,14 @@ final class OverviewModel {
 
     nonisolated struct DNSTotals: Sendable, Equatable {
         var groups: Int
-        var zones: Int
-        var signedZones: Int
+        /// `nil` when at least one group's zones could not be listed.
+        ///
+        /// Not zero, and not a partial sum. A group this account cannot read
+        /// answers 403, and counting it as "no zones" turns a permission
+        /// boundary into a factual claim about the estate — which is exactly
+        /// the swallowed-403 that non-negotiable #4 forbids.
+        var zones: Int?
+        var signedZones: Int?
     }
 
     nonisolated struct DHCPTotals: Sendable, Equatable {
@@ -234,28 +242,31 @@ final class OverviewModel {
             case .undocumented(let statusCode, _): throw APIStatusError(status: statusCode)
             }
 
-            // Zones are per group, so the count costs one call per group. They
-            // run concurrently; a group whose zones fail to list contributes
-            // nothing rather than failing the tile, because a partial count is
-            // still worth more than no DNS tile at all — and it is labelled as
-            // being across N groups, so a missing group is visible.
-            let zones = await withTaskGroup(of: [Components.Schemas.ZoneResponse].self) { tasks in
+            // Zones are per group, so the count costs one call per group; they
+            // run concurrently. A group that fails yields `nil` rather than an
+            // empty list, so the difference between "this group has no zones"
+            // and "this account may not read this group" survives the sum.
+            let perGroup = await withTaskGroup(of: [Components.Schemas.ZoneResponse]?.self) { tasks in
                 for group in groups {
                     tasks.addTask { [session] in
                         let response = try? await session.client
                             .listZonesApiV1DnsGroupsGroupIdZonesGet(path: .init(groupId: group.id))
                         if case .ok(let ok) = response, let zones = try? ok.body.json { return zones }
-                        return []
+                        return nil
                     }
                 }
                 // Accumulated with `for await` rather than `reduce(into:)`: the
                 // reducing closure is `inout` across an isolation boundary, and
                 // Swift 6 rejects it as a data race.
-                var collected: [Components.Schemas.ZoneResponse] = []
-                for await group in tasks { collected += group }
+                var collected: [[Components.Schemas.ZoneResponse]?] = []
+                for await zones in tasks { collected.append(zones) }
                 return collected
             }
 
+            guard !perGroup.contains(where: { $0 == nil }) else {
+                return DNSTotals(groups: groups.count, zones: nil, signedZones: nil)
+            }
+            let zones = perGroup.compactMap { $0 }.flatMap { $0 }
             return DNSTotals(
                 groups: groups.count,
                 zones: zones.count,

@@ -60,6 +60,11 @@ nonisolated enum APIErrorMessage {
             return "The server didn't respond in time."
         case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
             return "This device has no network connection."
+        case NSURLErrorCancelled:
+            // Normally intercepted by the task-cancellation check before it can
+            // reach a screen; this is for the case where the session itself was
+            // invalidated under an in-flight request.
+            return "The request was cancelled."
         default:
             return error.localizedDescription
         }
