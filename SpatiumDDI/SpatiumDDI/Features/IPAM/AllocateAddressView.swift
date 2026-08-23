@@ -103,11 +103,21 @@ struct AllocateAddressView: View {
             // Non-negotiable #6: the confirmation names the actual thing, not
             // "are you sure". An operator half-reading this on a train should
             // still see the address and the name it is about to be given.
-            .confirmationDialog(
+            //
+            // An alert rather than a confirmation dialog. A dialog raised from a
+            // toolbar button anchors itself to that button as a popover with a
+            // tail, which lands the summary in a narrow bubble over the form —
+            // wrapping the one thing the operator is supposed to read. A
+            // confirmation dialog earns its place when there are several
+            // choices or a destructive one among them; this is a single action
+            // plus the facts about it, which is what an alert is for.
+            .alert(
                 "Allocate \(model.effectiveAddress ?? "")?",
-                isPresented: $isConfirming,
-                titleVisibility: .visible
+                isPresented: $isConfirming
             ) {
+                // Explicit, and first: without a `.cancel` button SwiftUI
+                // supplies a lone "OK", so the only way out would be to agree.
+                Button("Cancel", role: .cancel) {}
                 Button("Allocate") { Task { await submit(force: false) } }
             } message: {
                 Text(model.confirmationSummary)

@@ -110,12 +110,12 @@ struct CreateRecordView: View {
                     }
                 }
             }
-            .confirmationDialog(
-                "Create this record?",
-                isPresented: $isConfirming,
-                titleVisibility: .visible
-            ) {
-                Button("Create Record") { Task { await submit() } }
+            // An alert, for the same reason as the allocate sheet: a dialog
+            // raised from a toolbar button becomes a tailed popover over the
+            // form, and the record line is the thing that must be readable.
+            .alert("Create this record?", isPresented: $isConfirming) {
+                Button("Cancel", role: .cancel) {}
+                Button("Create") { Task { await submit() } }
             } message: {
                 // The record as it will be written, in zone-file order — the
                 // form an operator reads without translating.

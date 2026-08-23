@@ -310,6 +310,9 @@
     "Couldn't save the trust decision. %@" : {
       "extractionState" : "extracted_with_value"
     },
+    "Create" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Create Record" : {
       "extractionState" : "extracted_with_value"
     },
