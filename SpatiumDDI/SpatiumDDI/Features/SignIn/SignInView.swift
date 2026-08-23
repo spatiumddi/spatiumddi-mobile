@@ -52,10 +52,13 @@ struct SignInView: View {
                         .accessibilityLabel(isTokenRevealed ? "Hide token" : "Show token")
                     }
 
+                    // Below the field, not instead of it. Scanning is a
+                    // convenience; pasting a token is the ordinary path and
+                    // has to keep looking like one.
                     Button {
                         model.isScanning = true
                     } label: {
-                        Label("Scan Enrolment Code", systemImage: "qrcode.viewfinder")
+                        Label("Or scan an enrolment code", systemImage: "qrcode.viewfinder")
                     }
                     .disabled(model.isBusy)
 

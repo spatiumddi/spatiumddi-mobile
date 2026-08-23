@@ -46,10 +46,13 @@ struct ServerSetupView: View {
                 }
 
                 Section {
-                    // First thing on the first screen, because the enrolment
-                    // code carries the server address as well as the token —
+                    // Offered on the first screen because the enrolment code
+                    // carries the server address as well as the token, and
                     // typing a hostname on a phone is the worst part of setting
-                    // this up, and the code removes it.
+                    // this up. It is a shortcut, never a requirement — the
+                    // footer says so, because a button between the address
+                    // field and Connect otherwise reads as a step rather than
+                    // an alternative.
                     Button {
                         addressFocused = false
                         model.isScanning = true
@@ -59,6 +62,12 @@ struct ServerSetupView: View {
                     if let notice = model.scanNotice {
                         Text(notice).font(.caption).foregroundStyle(.secondary)
                     }
+                } header: {
+                    Text("Or scan a code")
+                } footer: {
+                    Text(
+                        "A code from the web console's API Tokens page fills in the address and signs you in. Typing the address above and entering a token by hand works just as well."
+                    )
                 }
 
                 Section {

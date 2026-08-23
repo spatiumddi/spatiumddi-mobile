@@ -52,6 +52,9 @@
     "%lldd left" : {
       "extractionState" : "extracted_with_value"
     },
+    "A code from the web console's API Tokens page fills in the address and signs you in. Typing the address above and entering a token by hand works just as well." : {
+      "extractionState" : "extracted_with_value"
+    },
     "A host name or IP address. Add a port if your control plane doesn't use 443." : {
       "extractionState" : "extracted_with_value"
     },
@@ -644,6 +647,12 @@
       "extractionState" : "extracted_with_value"
     },
     "Operators run SpatiumDDI self-hosted and often air-gapped. This app talks to your control plane and nothing else." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Or scan a code" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Or scan an enrolment code" : {
       "extractionState" : "extracted_with_value"
     },
     "Overview" : {

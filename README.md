@@ -99,7 +99,8 @@ text names internal hostnames and subnets, and this app does not leak those.
 
 ### Also queued
 
-- **[Several servers, switched between](https://github.com/spatiumddi/spatiumddi/issues/916)** — one control plane per client or per region, each with its own token and pinned certificate. Matters more once Phase 2 writes land: "which server am I on" stops being a convenience question and becomes the one that decides whether an approval hits the right estate.
+- **[Allocate an IP and create a DNS record](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)** — the two writes a technician actually needs in front of a machine, and the pair that go together: take an address, then give it a name. Every write confirmed, showing exactly what will be created.
+- **[Several servers, switched between](https://github.com/spatiumddi/spatiumddi-mobile/issues/6)** — one control plane per client or per region, each with its own token and pinned certificate. Matters more once writes land: "which server am I on" stops being a convenience question and becomes the one that decides whether a change hits the right estate.
 - **[Passcode-only devices](https://github.com/spatiumddi/spatiumddi-mobile/issues/5)** — the app currently refuses to store a token without enrolled biometrics, which makes it unusable on a device that only has a passcode, including MDM-managed fleets with biometrics disabled. Biometrics should be strongly recommended, not required.
 
 ### Phase 4 — Android
@@ -191,12 +192,20 @@ from the server within one release, and the drift is silent.
 
 | What | Where |
 |---|---|
-| Feature requests, roadmap, API questions | [spatiumddi/spatiumddi](https://github.com/spatiumddi/spatiumddi/issues) |
-| App bugs — layout, navigation, crashes | [this tracker](https://github.com/spatiumddi/spatiumddi-mobile/issues) |
+| Anything the app does — features, UX, bugs, roadmap | [this tracker](https://github.com/spatiumddi/spatiumddi-mobile/issues) |
+| Work the platform has to do — a new or changed endpoint, a server-side capability | [spatiumddi/spatiumddi](https://github.com/spatiumddi/spatiumddi/issues) |
 | Security vulnerabilities | See [SECURITY.md](SECURITY.md) |
 
-Splitting a roadmap across two trackers is how items get lost. Feature work goes
-upstream.
+The test is simple: **could the app ship this without a server change?** If yes,
+it belongs here. Push notifications
+([spatiumddi#912](https://github.com/spatiumddi/spatiumddi/issues/912)), pool
+occupancy ([#913](https://github.com/spatiumddi/spatiumddi/issues/913)) and the
+DNS query log's missing `rcode`
+([#914](https://github.com/spatiumddi/spatiumddi/issues/914)) are upstream
+because each needs the control plane to grow something first.
+
+Splitting a roadmap across two trackers is how items get lost — so the split is
+by *who does the work*, not by whether something is a bug.
 
 ## Licence
 
