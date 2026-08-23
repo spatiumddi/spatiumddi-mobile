@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+
+  # No SPM manifest yet — this starts producing updates once the generated
+  # API client lands and Package.resolved is committed.
+  - package-ecosystem: swift
+    directory: /SpatiumDDI
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps
