@@ -1,26 +1,48 @@
 # Generated API client configuration.
 #
-# PROVISIONAL: openapi.json here is a development snapshot pulled from a running
-# control plane, whose info.version reads "latest" rather than a CalVer. CLAUDE.md
-# requires a shipped client be generated from a pinned release asset — see
-# spatiumddi/spatiumddi#905, which adds that asset. Re-pin before release.
+# openapi.json is the release asset from spatiumddi 2026.08.22-1, committed
+# byte-for-byte so it can be verified against the published artefact:
+#
+#   gh release download 2026.08.22-1 --repo spatiumddi/spatiumddi --pattern openapi.json
+#   shasum -a 256 openapi.json
+#   # 3d18647cb4c86bc76e01c60e5342dd4d5c88ff10513b7b4d2d9d90f5ec5e78d6
+#
+# Re-pin deliberately, against a release — never against a live control plane's
+# /api/openapi.json, which tracks main and is not a contract anyone shipped.
 generate:
   - types
   - client
 accessModifier: public
 namingStrategy: idiomatic
 filter:
-  # Phase 1 is read-mostly. Generating all 841 paths would produce an enormous
-  # client for a handful of screens; this is the surface #884 Phase 1 names.
+  # Phase 1 is read-mostly. The document describes 842 paths; generating all of
+  # them produces an enormous client for a handful of screens. This is the
+  # surface #884 Phase 1 names, plus the two Phase 2 writes an operator
+  # standing in front of a machine actually needs — allocating an address and
+  # naming it (spatiumddi-mobile#7). Both POSTs are on paths already listed
+  # here for their GET, so the filter shape is unchanged.
   paths:
+    # Platform state — version handshake and the health/maintenance banner.
     - /api/v1/version
+    - /health/platform
+
+    # Identity and client-side permission gating (UX only — see #4).
     - /api/v1/auth/me
     - /api/v1/auth/me/permissions
+
+    # Rollups. Only three exist server-side; the DDI figures the overview shows
+    # are counted from the resource endpoints below, not from a dashboard call.
     - /api/v1/dashboards/network/summary
     - /api/v1/dashboards/security/summary
+
+    # Global search.
     - /api/v1/search
     - /api/v1/search/types
+
+    # Alerts.
     - /api/v1/alerts/events
+
+    # IPAM: space → block → subnet → address.
     - /api/v1/ipam/spaces
     - /api/v1/ipam/spaces/{space_id}
     - /api/v1/ipam/blocks
@@ -29,10 +51,99 @@ filter:
     - /api/v1/ipam/subnets/{subnet_id}
     - /api/v1/ipam/subnets/{subnet_id}/addresses
     - /api/v1/ipam/addresses/{address_id}
+    # Read-only peek at what `allocate_next_ip` would hand out. Explicitly no
+    # lock and no write: two callers get the same candidate and the first to
+    # POST wins, so the allocate sheet says so and handles losing the race.
+    - /api/v1/ipam/subnets/{subnet_id}/next-ip-preview
+    - /api/v1/reports/top-subnets-by-utilization
+
+    # DNS: group → zone → record.
     - /api/v1/dns/groups
+    - /api/v1/dns/groups/{group_id}
+    - /api/v1/dns/groups/{group_id}/servers
     - /api/v1/dns/groups/{group_id}/zones
     - /api/v1/dns/groups/{group_id}/zones/{zone_id}
     - /api/v1/dns/groups/{group_id}/zones/{zone_id}/records
+    # One record, for correcting or removing it (spatiumddi-mobile#8). Note
+    # this is a separate path from the collection above — filtering the
+    # collection does not bring the item with it.
+    - /api/v1/dns/groups/{group_id}/zones/{zone_id}/records/{record_id}
+
+    # DHCP: server + group → scope → pool / reservation / lease.
     - /api/v1/dhcp/servers
+    - /api/v1/dhcp/servers/{server_id}
     - /api/v1/dhcp/servers/{server_id}/leases
+    - /api/v1/dhcp/servers/{server_id}/stats
+    - /api/v1/dhcp/server-groups
+    - /api/v1/dhcp/server-groups/{group_id}/scopes
     - /api/v1/dhcp/scopes/{scope_id}
+    - /api/v1/dhcp/scopes/{scope_id}/pools
+    - /api/v1/dhcp/scopes/{scope_id}/statics
+
+    # ── Operator-relevant surfaces beyond Phase 1's core ──────────────────
+    # Read-only, and chosen against one test: does an operator away from a desk
+    # ever need this? Packet capture, nmap, the subnet planner, backup and the
+    # AI configuration are all deliberately absent — a phone is a bad place to
+    # run any of them.
+
+    # Approvals and requests.
+    - /api/v1/change-requests
+    - /api/v1/change-requests/{cr_id}
+    - /api/v1/requests
+
+    # Expiry tracking: the two things that page someone at an awkward hour.
+    - /api/v1/domains
+    - /api/v1/domains/{domain_id}
+    - /api/v1/tls-certs
+    - /api/v1/tls-certs/{target_id}
+
+    # Network modelling.
+    - /api/v1/vrfs
+    - /api/v1/vrfs/{vrf_id}
+    - /api/v1/vlans/routers
+    - /api/v1/vlans/routers/{router_id}/vlans
+    - /api/v1/circuits
+    - /api/v1/circuits/{circuit_id}
+    - /api/v1/asns
+    - /api/v1/asns/{asn_id}
+
+    # Ownership entities, which cross-cut everything above.
+    - /api/v1/customers
+    - /api/v1/sites
+    - /api/v1/providers
+
+    # Security signal.
+    - /api/v1/new-devices/sightings
+    - /api/v1/new-devices/summary
+
+    # Administration: who is in, what they hold, and what has been done.
+    - /api/v1/users
+    - /api/v1/sessions
+    - /api/v1/api-tokens
+    - /api/v1/audit
+    - /api/v1/admin/trash
+
+    # Which optional modules this control plane has switched on. The rule
+    # against feature-probing needs somewhere to ask instead, and this is it.
+    - /api/v1/admin/feature-modules
+
+    # ── Troubleshooting a specific client ─────────────────────────────────
+    # lease-history filters by mac / ip / hostname, which is the whole point:
+    # a technician stood next to a machine that will not get an address needs
+    # to know whether it ever asked, what it got, and when that lapsed.
+    - /api/v1/dhcp/servers/{server_id}/lease-history
+    - /api/v1/dhcp/servers/{server_id}/recent-events
+    - /api/v1/dns/servers/{server_id}/recent-events
+    - /api/v1/logs/sources
+
+    # The DHCP and DNS protocol logs — the conversation itself, filterable by
+    # MAC or client IP. These are POST because the filter is a body, not
+    # because they change anything: they read a log and return rows. The
+    # read-only rule this app holds to is about not mutating a production
+    # network, not about HTTP verbs, and these are the two most useful
+    # troubleshooting surfaces the platform has.
+    #
+    # `recent-events` is NOT this — that returns audit rows about the server,
+    # not packets from clients.
+    - /api/v1/logs/dhcp-activity
+    - /api/v1/logs/dns-queries

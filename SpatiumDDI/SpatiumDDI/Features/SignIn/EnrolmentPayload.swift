@@ -28,6 +28,7 @@ nonisolated struct EnrolmentPayload: Equatable, Sendable {
         case unrecognised
         case badServer(String)
         case badFingerprint
+        case insecureScheme(String)
 
         var errorDescription: String? {
             switch self {
@@ -37,6 +38,9 @@ nonisolated struct EnrolmentPayload: Equatable, Sendable {
                 return "The code names a server the app can't use: \(detail)"
             case .badFingerprint:
                 return "The code's certificate fingerprint isn't a valid SHA-256 value."
+            case .insecureScheme(let scheme):
+                return
+                    "That code is for a \(scheme.uppercased()) control plane. This app only connects over HTTPS."
             }
         }
     }
@@ -66,6 +70,15 @@ nonisolated struct EnrolmentPayload: Equatable, Sendable {
             items.first { $0.name.lowercased() == name }?.value.flatMap {
                 $0.isEmpty ? nil : $0
             }
+        }
+
+        // The upstream contract carries an optional `scheme`, documented as
+        // "https assumed; http must be explicit". Ignoring it would silently
+        // turn a code for an HTTP lab into an HTTPS attempt that fails with a
+        // connection error naming nothing useful — so an explicit non-HTTPS
+        // scheme is refused, by name.
+        if let scheme = value("scheme")?.lowercased(), scheme != "https" {
+            throw .insecureScheme(scheme)
         }
 
         var address: ServerAddress?

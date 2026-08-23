@@ -18,7 +18,7 @@ final class SignInModel {
         case idle
         case validating
         case storing
-        case failed(String)
+        case failed(FailureMessage)
     }
 
     var tokenInput: String = ""
@@ -27,22 +27,33 @@ final class SignInModel {
     var scanNotice: String?
     var isScanning = false
 
-    let address: ServerAddress
-    private let probe: ControlPlaneProbe
-    private let tokens: TokenStore
+    /// The control plane, with whatever the operator named it.
+    let server: StoredServer
+    /// The origin itself. Kept distinct from the name: an address mismatch in a
+    /// scanned code is a fact about hosts, and reporting it in terms of a
+    /// nickname would hide which two hosts actually disagreed.
+    var address: ServerAddress { server.address }
+    private let enrolment: TokenEnrolment
     private let trust: TrustStore
     private let onSignedIn: (String) -> Void
 
     init(
-        address: ServerAddress,
+        server: StoredServer,
+        prefilledToken: String? = nil,
         probe: ControlPlaneProbe = ControlPlaneProbe(),
         tokens: TokenStore = TokenStore(),
         trust: TrustStore = TrustStore(),
         onSignedIn: @escaping (String) -> Void
     ) {
-        self.address = address
-        self.probe = probe
-        self.tokens = tokens
+        self.server = server
+        // Filled, never submitted. A code scanned on the connect screen has
+        // still not been seen by the operator, and #6's spirit is that nothing
+        // consequential happens without them looking at it.
+        if let prefilledToken {
+            self.tokenInput = prefilledToken
+            self.scanNotice = "Token filled in from the code you scanned. Review it, then sign in."
+        }
+        self.enrolment = TokenEnrolment(probe: probe, tokens: tokens)
         self.trust = trust
         self.onSignedIn = onSignedIn
     }
@@ -57,9 +68,14 @@ final class SignInModel {
         isScanning = false
 
         if let scanned = payload.address, scanned != address {
+            // One literal, not two joined with `+`. A concatenation is not a
+            // literal so it cannot be a localised resource at all — and a
+            // sentence split in half is unlocalisable regardless, because the
+            // halves do not stay in that order in every language.
             state = .failed(
-                "That code is for \(scanned.displayName), not \(address.displayName). "
-                    + "Go back and change server if you meant to connect there."
+                .app(
+                    "That code is for \(scanned.displayName), not \(address.displayName). Go back and change server if you meant to connect there."
+                )
             )
             return
         }
@@ -69,14 +85,15 @@ final class SignInModel {
             scanned != pinned
         {
             state = .failed(
-                "That code carries a different certificate fingerprint than the one you approved "
-                    + "for \(address.displayName). Do not continue until you know why."
+                .app(
+                    "That code carries a different certificate fingerprint than the one you approved for \(address.displayName). Do not continue until you know why."
+                )
             )
             return
         }
 
         guard let token = payload.token else {
-            state = .failed("That code didn't contain a token.")
+            state = .failed(.app("That code didn't contain a token."))
             return
         }
 
@@ -96,54 +113,30 @@ final class SignInModel {
 
     var biometryDescription: String { TokenStore.biometryDescription() }
 
-    var biometryUnavailableReason: String? {
-        if case .failure(let error) = TokenStore.biometryAvailability() {
-            return error.localizedDescription
-        }
-        return nil
+    /// What will hold the token once it is sealed, or why nothing could.
+    ///
+    /// Read before signing in, not after: a passcode-only device is a trade-off
+    /// the operator is accepting, and it has to be on screen while they still
+    /// have the choice.
+    var availableProtection: Result<KeychainProtection, TokenStore.StoreError> {
+        enrolment.availableProtection
     }
+
+    var isDeviceUnprotected: Bool { enrolment.unprotectedReason != nil }
 
     func signIn() async {
         let token = tokenInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !token.isEmpty else { return }
 
-        // Refuse before writing anything we couldn't protect properly.
-        if let reason = biometryUnavailableReason {
-            state = .failed(reason)
-            return
-        }
-
         state = .validating
-        switch await probe.validateToken(token, for: address) {
-        case .authenticated, .forbidden:
-            // .forbidden means the credential is good but this account can't read
-            // its own permissions — an authorisation problem to surface later,
-            // not a reason to reject a working token here.
-            await store(token)
-
-        case .rejected:
-            state = .failed("The server rejected that token. Check it hasn't been revoked or expired.")
-
-        case .maintenance:
-            state = .failed("\(address.displayName) is in a change window. Try again once it's finished.")
-
-        case .trustRequired:
-            state = .failed("The server's certificate changed since you connected. Reconnect to review it.")
-
-        case .failed(let error):
-            state = .failed(error.localizedDescription)
-        }
-    }
-
-    private func store(_ token: String) async {
-        state = .storing
-        do {
-            try tokens.save(token, for: address)
+        switch await enrolment.enrol(token, for: address) {
+        case .enrolled:
             tokenInput = ""
             state = .idle
             onSignedIn(token)
-        } catch {
-            state = .failed(error.localizedDescription)
+        case .failed(let message):
+            state = .failed(message)
         }
     }
+
 }

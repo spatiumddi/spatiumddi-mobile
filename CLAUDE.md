@@ -27,13 +27,14 @@ starts "what does the server do when…" is answered in `spatiumddi/spatiumddi`,
 
 | What | Where |
 |---|---|
-| Roadmap, feature issues, design decisions | `spatiumddi/spatiumddi` issues — **not this tracker** |
-| This tracker | App-internal bugs only (layout, navigation, Swift-side crashes) |
+| Anything the **app** does — features, UX, bugs, roadmap | **this tracker**, `spatiumddi/spatiumddi-mobile` |
+| Work the **platform** has to do — a new or changed REST endpoint, a server-side capability | `spatiumddi/spatiumddi` |
 | API reference | `docs/API.md` in the platform repo |
 | Permission grammar | `docs/PERMISSIONS.md` in the platform repo |
 | The API contract itself | `openapi.json`, a release asset on each platform release |
 
-Splitting the roadmap across two trackers is how items get lost. File feature work upstream.
+The test is: **could the app ship this without a server change?** If yes, it belongs here.
+Say which server-side change an upstream issue needs, or it will sit unread among platform work.
 
 ---
 
@@ -141,6 +142,45 @@ Per [#884](https://github.com/spatiumddi/spatiumddi/issues/884). Do not pull sco
 - **Phase 4 — Android.** Decide the stack then, on evidence.
 
 Phase 0 (PWA groundwork) is upstream frontend work — [spatiumddi#902](https://github.com/spatiumddi/spatiumddi/issues/902).
+
+---
+
+## UI Conventions
+
+These are house style, not taste. Each one exists because the alternative was
+tried on a phone and got in the way.
+
+- **A sheet that creates or edits something puts its action in the navigation
+  bar**, top right, as a **Save** pill
+  (`ToolbarItem(placement: .confirmationAction)`) — never as a row at the foot
+  of the form. At the foot it is the one control the keyboard covers, and on a
+  long form it is also the one you have to go looking for. Cancel pairs with it
+  on the left (`.cancellationAction`).
+  The onboarding screens — Connect, Sign In — deliberately keep a bottom button:
+  each is the end of a linear sequence, and the footer directly under it carries
+  what the operator is agreeing to ("stored in the Keychain and unlocked with
+  Face ID"). In the bar that text would be orphaned from its button.
+- **Saving still confirms.** Non-negotiable #6 is unchanged: Save opens the
+  confirmation, and the confirmation names the actual thing being written — the
+  address and the subnet, the record in zone-file form — never "Are you sure?".
+- **Say why a disabled Save is disabled**, in the form near the field at fault.
+  A greyed-out button with no stated reason is a dead end.
+- **Deleting asks the operator to type the name.** `DeleteConfirmationSheet`.
+  Two taps clears non-negotiable #6 for most things; it does not clear it for a
+  live DNS record, whose retraction reaches every server in the group before the
+  sheet has dismissed. The platform gates its own blast-radius operations the
+  same way (typed-CIDR on subnet resize), so this is house style on both sides.
+  Say **what will happen**, not "this cannot be undone" — the two deletes this
+  app can make differ, and getting the copy backwards is worse than none.
+- **Every screen that takes text gets `.dismissableKeyboard()`.** It adds the
+  keyboard-dismiss glyph above the keyboard and drag-to-dismiss on the scroll
+  view. Not optional on numeric fields: `.numberPad` has no Return key, so
+  without it there is no way out at all.
+- **Nested browse screens carry `.breadcrumbs(_:)`** — the ancestors, not the
+  root and not the current level, since the title already says that.
+- **Server text is never localised or Markdown-parsed.** `Text(verbatim:)` or
+  `FailureMessage.server`; this app's own words use `LocalizedStringResource`.
+  See `FailureMessage` for what goes wrong otherwise.
 
 ---
 

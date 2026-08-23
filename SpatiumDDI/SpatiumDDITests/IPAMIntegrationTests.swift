@@ -23,13 +23,44 @@ enum LiveServer {
         return parsed
     }
 
+    /// The credential for the live lab.
+    ///
+    /// `SPATIUM_LIVE_TOKEN_FILE` is preferred and `SPATIUM_LIVE_TOKEN` is the
+    /// fallback, because **xcodebuild dumps the launch environment into its
+    /// log**: a token passed directly lands in plaintext on disk, in CI
+    /// artefacts, and in anything scraping build output. A path does not. This
+    /// is not hypothetical — it is how two lab tokens had to be revoked.
     static var token: String? {
-        ProcessInfo.processInfo.environment["SPATIUM_LIVE_TOKEN"].flatMap {
-            $0.isEmpty ? nil : $0
+        let environment = ProcessInfo.processInfo.environment
+        if let path = environment["SPATIUM_LIVE_TOKEN_FILE"], !path.isEmpty,
+            let contents = try? String(contentsOfFile: path, encoding: .utf8)
+        {
+            let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { return trimmed }
         }
+        return environment["SPATIUM_LIVE_TOKEN"].flatMap { $0.isEmpty ? nil : $0 }
     }
 
     static var isConfigured: Bool { address != nil && token != nil }
+
+    /// A session against the live lab, approving its certificate if the system
+    /// won't validate it.
+    ///
+    /// A publicly-valid chain needs no approval, so the pin step is a no-op
+    /// there — the same code path an operator meets with a properly
+    /// certificated server. Each call gets its own keychain service so suites
+    /// running together never share or clobber a pin.
+    @MainActor
+    static func pinnedSession() async throws -> (ControlPlaneSession, TrustStore) {
+        let address = try #require(LiveServer.address)
+        let token = try #require(LiveServer.token)
+        let store = TrustStore(keychain: KeychainStore(service: "io.spatiumddi.tests.\(UUID().uuidString)"))
+
+        if case .trustRequired(let presented) = await ControlPlaneProbe(trustStore: store).probe(address) {
+            try store.pin(presented.fingerprint, for: address)
+        }
+        return (ControlPlaneSession(address: address, token: token, trustStore: store), store)
+    }
 }
 
 /// Exercises the app's own path to a real control plane: the trust delegate, the
@@ -41,19 +72,8 @@ enum LiveServer {
 @Suite(.enabled(if: LiveServer.isConfigured))
 @MainActor
 struct IPAMIntegrationTests {
-    /// Approves the server's certificate if the system won't validate it.
-    ///
-    /// A publicly-valid chain needs no approval, so this is a no-op there — the
-    /// same code path an operator meets with a properly certificated server.
     private func pinnedSession() async throws -> (ControlPlaneSession, TrustStore) {
-        let address = try #require(LiveServer.address)
-        let token = try #require(LiveServer.token)
-        let store = TrustStore(keychain: KeychainStore(service: "io.spatiumddi.tests.\(UUID().uuidString)"))
-
-        if case .trustRequired(let presented) = await ControlPlaneProbe(trustStore: store).probe(address) {
-            try store.pin(presented.fingerprint, for: address)
-        }
-        return (ControlPlaneSession(address: address, token: token, trustStore: store), store)
+        try await LiveServer.pinnedSession()
     }
 
     @Test("The pinned session reaches the API and decodes IP spaces")

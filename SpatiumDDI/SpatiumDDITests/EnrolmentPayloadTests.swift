@@ -58,12 +58,16 @@ struct EnrolmentPayloadTests {
     }
 
     @Test("A code cannot downgrade the connection to HTTP")
-    func codeCannotDowngrade() throws {
-        // `scheme` is no longer honoured, so a code carrying one is simply
-        // parsed as the HTTPS server it names.
-        let payload = try EnrolmentPayload.parse(
-            "spatiumddi://enrol?host=lab.internal&scheme=http&token=sddi_x")
-        #expect(payload.address == ServerAddress(host: "lab.internal", port: nil))
+    func codeCannotDowngrade() {
+        // The guarantee is unchanged — a code can never produce a plaintext
+        // connection — but it is now kept by refusing rather than by silently
+        // reading `scheme=http` as HTTPS. Coercing it meant an operator who
+        // scanned their HTTP lab's code got an HTTPS attempt that failed with a
+        // connection error naming nothing useful; this says what is wrong.
+        #expect(throws: EnrolmentPayload.ParseError.insecureScheme("http")) {
+            try EnrolmentPayload.parse(
+                "spatiumddi://enrol?host=lab.internal&scheme=http&token=sddi_x")
+        }
     }
 
     @Test(
@@ -100,4 +104,34 @@ struct EnrolmentPayloadTests {
         }
     }
 
+    // The upstream contract documents `scheme` as "https assumed; http must be
+    // explicit". Ignoring it would turn a code for an HTTP lab into a silent
+    // HTTPS attempt that fails with a connection error naming nothing useful.
+    @Test("An explicitly non-HTTPS code is refused by name")
+    func refusesInsecureScheme() {
+        #expect(throws: EnrolmentPayload.ParseError.insecureScheme("http")) {
+            try EnrolmentPayload.parse("spatiumddi://enrol?host=ddi.lab&scheme=http&token=sddi_abc")
+        }
+    }
+
+    @Test("An explicit https scheme is accepted")
+    func acceptsExplicitHTTPS() throws {
+        let payload = try EnrolmentPayload.parse(
+            "spatiumddi://enrol?host=ddi.lab&scheme=https&token=sddi_abc"
+        )
+        #expect(payload.address?.host == "ddi.lab")
+        #expect(payload.token == "sddi_abc")
+    }
+
+    @Test("A code carrying server, token and fingerprint configures all three")
+    func fullEnrolmentCode() throws {
+        let fingerprint = String(repeating: "ab", count: 32)
+        let payload = try EnrolmentPayload.parse(
+            "spatiumddi://enrol?host=ddi.lab&port=8443&token=sddi_abc&fingerprint=\(fingerprint)"
+        )
+        #expect(payload.address?.host == "ddi.lab")
+        #expect(payload.address?.port == 8443)
+        #expect(payload.token == "sddi_abc")
+        #expect(payload.certificateFingerprint?.count == 32)
+    }
 }

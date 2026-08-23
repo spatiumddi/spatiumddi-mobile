@@ -35,13 +35,32 @@ extension XCTestCase {
             }
         }
 
-        // Signing out lands on sign-in, which is one step from the connect screen.
-        if app.buttons["Change Server"].waitForExistence(timeout: 3) {
-            app.buttons["Change Server"].tap()
+        // Signing out lands on sign-in, which is two steps from the connect
+        // form now that several servers can be configured: Switch Server opens
+        // the list, and the form is behind Add Server on it.
+        openConnectForm(app)
+    }
+
+    /// From wherever the app is in the server flow, get to the connect form.
+    ///
+    /// Both taps are conditional. On a device with no server configured the app
+    /// launches straight into the form, and on one that has several the list is
+    /// already on screen — asserting either step would fail on a clean
+    /// simulator for a reason unrelated to what the test covers.
+    func openConnectForm(_ app: XCUIApplication) {
+        if app.buttons["Switch Server"].waitForExistence(timeout: 3) {
+            app.buttons["Switch Server"].tap()
+        }
+        if app.buttons["Add Server"].waitForExistence(timeout: 3) {
+            app.buttons["Add Server"].tap()
         }
     }
 
     /// Types an address into the connect screen and submits it.
+    ///
+    /// The address field is the first on the form; the optional name field sits
+    /// below it and is deliberately left empty here, so a test asserts against
+    /// the host rather than a label it invented.
     func enterAddress(_ app: XCUIApplication, _ address: String) {
         let field = app.textFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 20), "Address field never appeared")
@@ -61,9 +80,15 @@ extension XCTestCase {
         enterAddress(app, address)
         if app.staticTexts["Verify Certificate"].waitForExistence(timeout: 20) { return }
 
+        // Already trusted, so the connection succeeded instead. The controls
+        // for that state are in the Status section at the bottom of the form,
+        // which on a phone-sized window is below the fold — and a SwiftUI Form
+        // is a lazy collection view, so a row nobody has scrolled to is not in
+        // the accessibility tree at all, not merely off screen.
         let forget = app.buttons["Forget Trusted Certificate"]
+        if !forget.waitForExistence(timeout: 10) { app.swipeUp() }
         XCTAssertTrue(
-            forget.waitForExistence(timeout: 15),
+            forget.waitForExistence(timeout: 10),
             "Neither challenged nor connected — the server is unreachable"
         )
         forget.tap()

@@ -55,7 +55,7 @@ final class SignInFlowUITests: XCTestCase {
         attach(app, "05-sign-in")
 
         // Return to the connect screen and drop the pin, so re-runs start clean.
-        app.buttons["Change Server"].tap()
+        openConnectForm(app)
         enterAddress(app, "localhost:8443")
         forgetTrustedCertificate(app)
     }
@@ -83,6 +83,16 @@ final class SignInFlowUITests: XCTestCase {
         secure.tap()
         secure.typeText("sddi_visible_check")
 
+        // With the keyboard up, the way out of it has to be on screen: the
+        // Sign In button is behind the keyboard at this point, and on the
+        // numeric fields elsewhere in the app there is no Return key to fall
+        // back on.
+        XCTAssertTrue(
+            app.buttons["Hide keyboard"].waitForExistence(timeout: 5),
+            "No way to dismiss the keyboard while a field is focused"
+        )
+        attach(app, "06-keyboard-toolbar")
+
         reveal.tap()
         // Revealed: now a plain field, carrying the text that was typed.
         let plain = app.textFields.firstMatch
@@ -96,7 +106,7 @@ final class SignInFlowUITests: XCTestCase {
         )
 
         // Leave no pin behind.
-        app.buttons["Change Server"].tap()
+        openConnectForm(app)
         enterAddress(app, "localhost:8443")
         forgetTrustedCertificate(app)
     }

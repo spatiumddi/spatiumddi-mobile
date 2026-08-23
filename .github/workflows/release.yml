@@ -1,0 +1,137 @@
+name: TestFlight
+
+# Archives the app and uploads it to TestFlight.
+#
+# REQUIRES A PAID APPLE DEVELOPER PROGRAM MEMBERSHIP. A free personal team can
+# install on a cabled device and nothing else — its provisioning profiles last
+# seven days and App Store Connect will not accept a build from one. There is no
+# way around that from this side; see docs/DISTRIBUTION.md.
+#
+# Everything below is inert until the four secrets exist, so this file sitting
+# here costs nothing and is ready the day the account is.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "What testers should know about this build"
+        required: false
+        default: "Internal test build."
+
+concurrency:
+  group: testflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Archive & upload
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail with a sentence a human can act on, rather than a signing error
+      # forty lines into an xcodebuild log.
+      - name: Check the account is configured
+        env:
+          ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          [ -n "$ISSUER" ] || missing="$missing APP_STORE_CONNECT_ISSUER_ID"
+          [ -n "$KEY_ID" ] || missing="$missing APP_STORE_CONNECT_KEY_ID"
+          [ -n "$KEY" ]    || missing="$missing APP_STORE_CONNECT_PRIVATE_KEY"
+          [ -n "$TEAM" ]   || missing="$missing APPLE_TEAM_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::TestFlight upload needs these repository secrets:$missing"
+            echo "::error::See docs/DISTRIBUTION.md. This needs a paid Apple Developer Program membership."
+            exit 1
+          fi
+
+      # The key is a secret; the path is not. Written to a file so it never
+      # reaches a command line, where it would show up in the process list.
+      - name: Install the App Store Connect key
+        env:
+          KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s' "$KEY" > ~/private_keys/AuthKey_${KEY_ID}.p8
+          chmod 600 ~/private_keys/AuthKey_${KEY_ID}.p8
+
+      # App Store Connect rejects a build whose version it has seen before, and
+      # a re-run of a failed upload is exactly when that bites. The run number
+      # is monotonic per repository, which is all the build number has to be.
+      - name: Set the build number
+        run: |
+          agvtool new-version -all "${{ github.run_number }}"
+        working-directory: SpatiumDDI
+
+      - name: Archive
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild archive \
+            -project SpatiumDDI/SpatiumDDI.xcodeproj \
+            -scheme SpatiumDDI \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/SpatiumDDI.xcarchive" \
+            -skipPackagePluginValidation \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${KEY_ID}.p8 \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER" \
+            DEVELOPMENT_TEAM="$TEAM" \
+            CODE_SIGN_STYLE=Automatic
+
+      - name: Export and upload to TestFlight
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${TEAM}</string>
+            <key>destination</key><string>upload</string>
+            <key>uploadSymbols</key><true/>
+            <!-- TestFlight only. Reaching the store is a deliberate act, not
+                 something a tag push should be able to start. -->
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/SpatiumDDI.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${KEY_ID}.p8 \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER"
+
+      # The key outlives the job otherwise: hosted runners are ephemeral, but
+      # this costs nothing and the habit is the point.
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/private_keys/*.p8
+
+      - name: Upload the archive for debugging
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcarchive
+          path: ${{ runner.temp }}/SpatiumDDI.xcarchive
+          retention-days: 3
+          if-no-files-found: ignore

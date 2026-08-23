@@ -8,8 +8,9 @@ import SwiftUI
 
 /// IPAM browse: space → block → subnet → address.
 ///
-/// Read-only. Phase 1 is read-mostly, and nothing here mutates a production
-/// network — every row is a navigation, not an action.
+/// Read all the way down; the one write is taking an address in a subnet, and
+/// it lives behind an explicit sheet with its own confirmation. Every row here
+/// is still a navigation, not an action.
 struct IPAMBrowseView: View {
     let session: ControlPlaneSession
 
@@ -50,21 +51,19 @@ struct IPAMBrowseView: View {
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             // Switched rather than `.ok`: the shorthand collapses every status
             // the document doesn't declare — 401, 403, 503 — into an opaque
             // runtime error, and non-negotiable #4 says those must be shown for
             // what they are.
             switch try await session.client.listSpacesApiV1IpamSpacesGet() {
             case .ok(let ok):
-                state = .loaded(try ok.body.json)
+                return try ok.body.json
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
-            case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
         }
     }
 }
@@ -81,7 +80,7 @@ struct IPAMBlocksView: View {
             LoadStateView(state: state, emptyMessage: "This space has no blocks.", retry: load) { blocks in
                 ForEach(blocks, id: \.id) { block in
                     NavigationLink {
-                        IPAMSubnetsView(session: session, block: block)
+                        IPAMSubnetsView(session: session, block: block, trail: [space.name])
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(block.network).font(.body.monospaced())
@@ -90,8 +89,14 @@ struct IPAMBlocksView: View {
                             }
                             UtilisationBar(percent: block.utilizationPercent)
                             if let allocated = block.allocatedIps, let total = block.totalIps {
-                                Text("\(allocated.formatted()) of \(total.formatted()) addresses")
-                                    .font(.caption2).foregroundStyle(.secondary)
+                                // `formattedAddressCount` rather than raw: an
+                                // IPv6 block's total comes back clamped to
+                                // Int64.max, and printing that as an address
+                                // count states a number that is not real.
+                                Text(
+                                    "\(allocated.formatted()) of \(total.formattedAddressCount) addresses"
+                                )
+                                .font(.caption2).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -108,7 +113,7 @@ struct IPAMBlocksView: View {
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             // Filtered by the server: `/ipam/blocks` takes a `space_id`, and an
             // estate's worth of blocks is not something to pull down and discard
             // on a phone. The client-side filter stays as a backstop in case the
@@ -118,14 +123,12 @@ struct IPAMBlocksView: View {
             )
             switch response {
             case .ok(let ok):
-                state = .loaded(try ok.body.json.filter { $0.spaceId == space.id })
+                return try ok.body.json.filter { $0.spaceId == space.id }
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
-            case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
         }
     }
 }
@@ -134,6 +137,8 @@ struct IPAMBlocksView: View {
 struct IPAMSubnetsView: View {
     let session: ControlPlaneSession
     let block: Components.Schemas.IPBlockResponse
+    /// The space this block was reached through.
+    var trail: [String] = []
 
     @State private var state: LoadState<[Components.Schemas.SubnetResponse]> = .idle
 
@@ -142,7 +147,9 @@ struct IPAMSubnetsView: View {
             LoadStateView(state: state, emptyMessage: "This block has no subnets.", retry: load) { subnets in
                 ForEach(subnets, id: \.id) { subnet in
                     NavigationLink {
-                        IPAMAddressesView(session: session, subnet: subnet)
+                        IPAMAddressesView(
+                            session: session, subnet: subnet, trail: trail + [block.network]
+                        )
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -163,6 +170,7 @@ struct IPAMSubnetsView: View {
         }
         .navigationTitle(block.network)
         .navigationBarTitleDisplayMode(.inline)
+        .breadcrumbs(trail)
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
     }
@@ -171,20 +179,18 @@ struct IPAMSubnetsView: View {
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             let response = try await session.client.listSubnetsApiV1IpamSubnetsGet(
                 query: .init(blockId: block.id)
             )
             switch response {
             case .ok(let ok):
-                state = .loaded(try ok.body.json.filter { $0.blockId == block.id })
+                return try ok.body.json.filter { $0.blockId == block.id }
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
-            case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
         }
     }
 }
@@ -193,8 +199,24 @@ struct IPAMSubnetsView: View {
 struct IPAMAddressesView: View {
     let session: ControlPlaneSession
     let subnet: Components.Schemas.SubnetResponse
+    /// The space and block this subnet was reached through.
+    var trail: [String] = []
 
     @State private var state: LoadState<[Components.Schemas.IPAddressResponse]> = .idle
+    @State private var query = ""
+    @State private var isAllocating = false
+    @Environment(Permissions.self) private var permissions
+
+    private var visible: [Components.Schemas.IPAddressResponse] {
+        guard case .loaded(let addresses) = state else { return [] }
+        guard !query.isEmpty else { return addresses }
+        return addresses.filter {
+            $0.address.localizedCaseInsensitiveContains(query)
+                || ($0.hostname ?? "").localizedCaseInsensitiveContains(query)
+                || ($0.fqdn ?? "").localizedCaseInsensitiveContains(query)
+                || ($0.macAddress ?? "").localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
         List {
@@ -203,31 +225,33 @@ struct IPAMAddressesView: View {
                 if let gateway = subnet.gateway { LabeledContent("Gateway", value: gateway) }
                 LabeledContent("Status", value: subnet.status)
                 LabeledContent("Utilisation") {
-                    Text("\(subnet.allocatedIps.formatted()) / \(subnet.totalIps.formatted())")
+                    Text(
+                        "\(subnet.allocatedIps.formatted()) / \(subnet.totalIps.formattedAddressCount)"
+                    )
                 }
             }
 
             Section("Addresses") {
                 LoadStateView(
                     state: state, emptyMessage: "No addresses are recorded in this subnet.", retry: load
-                ) { addresses in
-                    ForEach(addresses, id: \.id) { address in
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text(address.address).font(.body.monospaced())
-                                Spacer()
-                                Text(address.status).font(.caption2).foregroundStyle(.secondary)
-                            }
-                            // An unnamed address comes back as "" rather than
-                            // null, so `??` alone would hide an fqdn that is
-                            // present.
-                            if let name = [address.hostname, address.fqdn]
-                                .compactMap({ $0 }).first(where: { !$0.isEmpty })
-                            {
-                                Text(name).font(.caption).foregroundStyle(.secondary)
-                            }
-                            if let mac = address.macAddress, !mac.isEmpty {
-                                Text(mac).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                ) { _ in
+                    if visible.isEmpty {
+                        NoMatchesView(
+                            query: query,
+                            filterDescription: "No address matches that IP, hostname or MAC."
+                        )
+                    } else {
+                        ForEach(visible, id: \.id) { address in
+                            NavigationLink {
+                                IPAMAddressDetailView(
+                                    session: session,
+                                    address: address,
+                                    subnet: subnet,
+                                    trail: trail + [subnet.network],
+                                    onChanged: { Task { await fetch() } }
+                                )
+                            } label: {
+                                AddressRow(address: address)
                             }
                         }
                     }
@@ -236,27 +260,82 @@ struct IPAMAddressesView: View {
         }
         .navigationTitle(subnet.name.isEmpty ? subnet.network : subnet.name)
         .navigationBarTitleDisplayMode(.inline)
+        .breadcrumbs(trail)
+        .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
+        .dismissableKeyboard()
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
+        .toolbar {
+            // Hidden from an account with no write grant as a courtesy. The
+            // server enforces this independently — non-negotiable #4 — and the
+            // sheet still reports a 403 honestly if the gate here was wrong.
+            if permissions.canWrite("subnet", "ip_address", id: subnet.id) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isAllocating = true
+                    } label: {
+                        Label("Allocate Address", systemImage: "plus")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $isAllocating) {
+            AllocateAddressView(
+                session: session,
+                subnet: subnet,
+                onCreated: { _ in
+                    // Refetched rather than inserted locally. The row the
+                    // server returns is pre-enrichment — no `fqdn`, no vendor,
+                    // no pool membership — so splicing it in would show a
+                    // freshly created address as the one row missing the
+                    // details every other row has.
+                    Task { await fetch() }
+                },
+                onDismiss: { isAllocating = false }
+            )
+        }
     }
 
     private func load() { Task { await fetch() } }
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             let response = try await session.client
                 .listAddressesApiV1IpamSubnetsSubnetIdAddressesGet(path: .init(subnetId: subnet.id))
             switch response {
             case .ok(let ok):
-                state = .loaded(try ok.body.json)
+                return try ok.body.json
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
-            case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
+        }
+    }
+}
+
+/// One row in the address list.
+private struct AddressRow: View {
+    let address: Components.Schemas.IPAddressResponse
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(address.address).font(.body.monospaced())
+                Spacer()
+                Text(address.status).font(.caption2).foregroundStyle(.secondary)
+            }
+            // An unnamed address comes back as "" rather than null, so `??`
+            // alone would hide an fqdn that is present.
+            if let name = [address.hostname, address.fqdn]
+                .compactMap({ $0 }).first(where: { !$0.isEmpty })
+            {
+                Text(name).font(.caption).foregroundStyle(.secondary)
+            }
+            if let mac = address.macAddress, !mac.isEmpty {
+                Text(mac).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+            }
         }
     }
 }

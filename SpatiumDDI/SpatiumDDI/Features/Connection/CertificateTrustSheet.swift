@@ -34,6 +34,25 @@ struct CertificateTrustSheet: View {
                     )
                 }
 
+                // Evidence from the scanned code, placed above the fingerprint
+                // so it frames the comparison rather than being a footnote to
+                // it. A mismatch is stated as loudly as a match.
+                if let matches = pending.matchesScannedCode {
+                    Section {
+                        Label {
+                            Text(
+                                matches
+                                    ? "This certificate matches the fingerprint in the code you scanned."
+                                    : "This certificate does NOT match the fingerprint in the code you scanned. Do not continue until you know why."
+                            )
+                            .font(.callout)
+                        } icon: {
+                            Image(systemName: matches ? "checkmark.seal.fill" : "xmark.seal.fill")
+                        }
+                        .foregroundStyle(matches ? .green : .red)
+                    }
+                }
+
                 Section("SHA-256 Fingerprint") {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(certificate.fingerprintGroups, id: \.self) { group in
@@ -45,7 +64,7 @@ struct CertificateTrustSheet: View {
                     .padding(.vertical, 4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("SHA-256 fingerprint")
+                    .accessibilityLabel("SHA-256 Fingerprint")
                     .accessibilityValue(certificate.fingerprintHex)
                 }
 
