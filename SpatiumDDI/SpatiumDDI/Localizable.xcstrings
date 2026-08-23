@@ -37,6 +37,9 @@
     "%@ of %@ addresses" : {
       "extractionState" : "extracted_with_value"
     },
+    "%@ stops resolving as soon as this is sent — the retraction is pushed to every server in the group, not left for a later sync. The record can be restored from Trash." : {
+      "extractionState" : "extracted_with_value"
+    },
     "%@ unavailable" : {
       "extractionState" : "extracted_with_value"
     },
@@ -106,6 +109,12 @@
     "A passcode is weaker than biometrics here, and unlike a biometric enrolment it doesn't invalidate the stored token when it changes. Sign in again after setting up biometrics to upgrade this." : {
       "extractionState" : "extracted_with_value"
     },
+    "A record needs a value." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "A record's type can't be changed — an A that becomes a CNAME is a different record." : {
+      "extractionState" : "extracted_with_value"
+    },
     "A token is never stored unprotected. Set a device passcode — and biometrics if this device has them — then come back." : {
       "extractionState" : "extracted_with_value"
     },
@@ -128,6 +137,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Access" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Actions" : {
       "extractionState" : "extracted_with_value"
     },
     "Active leases" : {
@@ -277,6 +289,9 @@
     "Class" : {
       "extractionState" : "extracted_with_value"
     },
+    "Clearing the host name deletes the DNS record this address publishes." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Client" : {
       "extractionState" : "extracted_with_value"
     },
@@ -284,6 +299,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Configuration" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Confirm" : {
       "extractionState" : "extracted_with_value"
     },
     "Connect" : {
@@ -361,6 +379,15 @@
     "Default TTL" : {
       "extractionState" : "extracted_with_value"
     },
+    "Delete" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Delete this address?" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Delete this record?" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Demo mode — this control plane holds seeded data." : {
       "extractionState" : "extracted_with_value"
     },
@@ -398,6 +425,15 @@
       "extractionState" : "extracted_with_value"
     },
     "Each server keeps its own token and its own approved certificate. Nothing is shared between them, and switching signs out of the one you're leaving." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Edit" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Edit Address" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Edit Record" : {
       "extractionState" : "extracted_with_value"
     },
     "Email" : {
@@ -521,6 +557,9 @@
       "extractionState" : "extracted_with_value"
     },
     "IPAM" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "IPAM published this record for an address. Deleting it here leaves the address still claiming the name, and the next sync republishes it." : {
       "extractionState" : "extracted_with_value"
     },
     "IPv4 address space in use" : {
@@ -805,10 +844,19 @@
     "Not created" : {
       "extractionState" : "extracted_with_value"
     },
+    "Not deleted" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Not saved" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Note" : {
       "extractionState" : "extracted_with_value"
     },
     "Nothing firing." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Nothing has been changed. Continuing waives every warning above at once." : {
       "extractionState" : "extracted_with_value"
     },
     "Nothing has been recorded." : {
@@ -934,6 +982,9 @@
     "Rename This Server" : {
       "extractionState" : "extracted_with_value"
     },
+    "Renaming republishes the DNS record under the new name." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Renumbering or freeing this address affects these too. Follow them up in the web console." : {
       "extractionState" : "extracted_with_value"
     },
@@ -968,6 +1019,15 @@
       "extractionState" : "extracted_with_value"
     },
     "Save" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Save Anyway" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Save changes to %@?" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Saving bumps the zone's serial and pushes to every server in the group." : {
       "extractionState" : "extracted_with_value"
     },
     "Saving…" : {
@@ -1135,6 +1195,18 @@
     "The %@ feature module is switched off on this server." : {
       "extractionState" : "extracted_with_value"
     },
+    "The DHCP reservation on this address is removed with it, and pushed to the DHCP server." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The address becomes an orphan row in this subnet and can be allocated again. Its DNS record is deleted either way — the name is released." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The address becomes an orphan row in this subnet and can be re-allocated. Its DNS record is deleted either way — the name is released." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The address itself can't be changed here — the server doesn't move a row to a different IP. Delete it and allocate the one you want." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The registrar's nameservers don't match what's expected here." : {
       "extractionState" : "extracted_with_value"
     },
@@ -1201,6 +1273,9 @@
     "This account must change its password on the web console." : {
       "extractionState" : "extracted_with_value"
     },
+    "This address has a DHCP reservation, which is removed with it." : {
+      "extractionState" : "extracted_with_value"
+    },
     "This address is inside a DHCP pool. The DHCP server owns that range and will keep leasing the address unless you also pin a matching static reservation." : {
       "extractionState" : "extracted_with_value"
     },
@@ -1243,7 +1318,16 @@
     "This is a development build, so it can't be checked against the minimum supported release (%@)." : {
       "extractionState" : "extracted_with_value"
     },
+    "This record is generated by an integration and managed by its reconciler. Changes here would be overwritten on the next sync, and the server refuses them." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This record was published by IPAM for an address. Editing it here works, and the next IPAM sync will put it back — change the address instead." : {
+      "extractionState" : "extracted_with_value"
+    },
     "This router has no VLANs." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This row mirrors a live DHCP lease, so the server will refuse. Release the lease at the DHCP server instead." : {
       "extractionState" : "extracted_with_value"
     },
     "This scope has no pools — it hands out nothing dynamically." : {
@@ -1294,6 +1378,12 @@
     "Type" : {
       "extractionState" : "extracted_with_value"
     },
+    "Type this" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Typing it is the whole confirmation — there is no second prompt." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Unhealthy" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1334,6 +1424,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Valid" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Value" : {
       "extractionState" : "extracted_with_value"
     },
     "Vendor" : {
@@ -1448,6 +1541,9 @@
       "extractionState" : "extracted_with_value"
     },
     "disabled" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "empty" : {
       "extractionState" : "extracted_with_value"
     },
     "expires %@" : {

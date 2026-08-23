@@ -281,3 +281,44 @@ struct KeychainProtectionTests {
         #expect(KeychainProtection.passcode.caveat != nil, "the weaker option has to say so")
     }
 }
+
+/// The typed gate in front of a delete (spatiumddi-mobile#8).
+///
+/// Deleting a DNS record pushes the retraction to every server in the group
+/// immediately — the name stops resolving before the sheet has dismissed — so
+/// this is the one confirmation in the app that asks for more than a tap.
+@Suite("Delete confirmation")
+struct DeleteConfirmationTests {
+    @Test("The exact subject clears the gate")
+    func exactMatch() {
+        #expect(DeleteConfirmation.matches("10.50.0.1", subject: "10.50.0.1"))
+    }
+
+    /// Forgiving about the things a phone keyboard adds, strict about the rest.
+    @Test(
+        "Case and surrounding whitespace are forgiven",
+        arguments: ["  10.50.0.1  ", "WEB01", "web01", "\nweb01\n"]
+    )
+    func forgiving(typed: String) {
+        let subject = typed.lowercased().contains("web") ? "web01" : "10.50.0.1"
+        #expect(DeleteConfirmation.matches(typed, subject: subject))
+    }
+
+    @Test(
+        "A near miss does not",
+        arguments: ["10.50.0.10", "10.50.0.", "", "10.50.01", "web 01"]
+    )
+    func nearMiss(typed: String) {
+        #expect(!DeleteConfirmation.matches(typed, subject: "10.50.0.1"))
+    }
+
+    /// The dangerous edge: with an empty subject, typing nothing would satisfy
+    /// a naive comparison — leaving the gate absent on exactly the rows whose
+    /// identity is least obvious.
+    @Test("An empty subject matches nothing at all")
+    func emptySubjectIsNotAFreePass() {
+        #expect(!DeleteConfirmation.matches("", subject: ""))
+        #expect(!DeleteConfirmation.matches("   ", subject: "   "))
+        #expect(!DeleteConfirmation.matches("anything", subject: ""))
+    }
+}

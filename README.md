@@ -46,8 +46,8 @@ platform, the API and the roadmap all live in
 |---|---|
 | **Overview** | Platform health per component, maintenance/demo banners, server version and update check, unresolved alerts by severity, estate counts, and a size-weighted utilisation figure with the busiest subnets |
 | **Alerts** | Every alert event, most-severe first, filterable by severity and unresolved-only |
-| **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it. **Allocate an address**: next-available or a specific one, named and published to DNS in the same request |
-| **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring. **Add a record** — A, AAAA, CNAME, TXT, MX, SRV, NS, PTR, CAA — stated in zone-file form before it is sent |
+| **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it. **Allocate** an address (next-available or specific, named and published to DNS in the same request), **edit** what it says about itself, **delete** it behind a typed confirmation |
+| **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring. **Add, edit and delete records** — A, AAAA, CNAME, TXT, MX, SRV, NS, PTR, CAA — each stated in zone-file form before it is sent |
 | **DHCP** | Server health and HA state, a live ACK/NAK traffic chart, leases with fingerprinted device class, and scopes with their pools and reservations |
 | **Search** | Global search across 16 resource types, grouped by kind, ranked server-side |
 | **Connect** | HTTPS-only, with an explicit certificate-trust flow for the private CAs self-hosted installs actually use |
@@ -74,8 +74,9 @@ Acknowledge and resolve alerts, approve change requests, allocate the next free
 IP, toggle maintenance mode. Approvals-on-the-go is the best mobile write story
 there is; the rest of the platform's surface stays desktop work.
 
-**Landed:** allocating an address, and creating a DNS record
-([#7](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)).
+**Landed:** allocating an address and creating a DNS record
+([#7](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)); editing and
+deleting both ([#8](https://github.com/spatiumddi/spatiumddi-mobile/issues/8)).
 
 Every write is confirmed, and the confirmation names the actual thing — the
 address and the subnet, or the record in zone-file form — rather than asking
@@ -93,9 +94,15 @@ Two behaviours are worth knowing about, because they are the ones that bite:
   a *soft* conflict the server will accept once you have read it — so those are
   shown in full, and continuing waives them explicitly.
 
-Editing and deleting existing records stay out of scope. Creating is
-recoverable; changing a live record from a phone is how this becomes a way to
-cause an outage.
+Editing and deleting were scoped out of #7 and then asked for; #8 is that
+decision. They are in, behind a **typed confirmation** — deleting asks you to
+type the address or the record name, because a record's retraction reaches every
+server in the group before the sheet has finished dismissing.
+
+The two deletes are not the same thing and the app does not pretend they are.
+An address becomes an `orphan` row that can be re-allocated, but its DNS record
+is released either way. A record is restorable from Trash, but stops resolving
+now. Neither offers permanent removal from a phone.
 
 ### Phase 3 — push notifications 🔗 [spatiumddi#912](https://github.com/spatiumddi/spatiumddi/issues/912)
 
@@ -120,7 +127,6 @@ text names internal hostnames and subnets, and this app does not leak those.
 
 ### Also queued
 
-- **Editing and deleting** IPAM addresses and DNS records — deliberately deferred with the create paths, and wanting a typed confirmation if they land at all.
 - **Fleet-wide lease queries** — "does this MAC have a lease *anywhere*" currently costs one call per DHCP server plus a client-side merge. Filed upstream as part of [spatiumddi#917](https://github.com/spatiumddi/spatiumddi/issues/917) §A2.
 
 ### Phase 4 — Android

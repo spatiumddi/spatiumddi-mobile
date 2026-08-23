@@ -64,6 +64,10 @@ filter:
     - /api/v1/dns/groups/{group_id}/zones
     - /api/v1/dns/groups/{group_id}/zones/{zone_id}
     - /api/v1/dns/groups/{group_id}/zones/{zone_id}/records
+    # One record, for correcting or removing it (spatiumddi-mobile#8). Note
+    # this is a separate path from the collection above — filtering the
+    # collection does not bring the item with it.
+    - /api/v1/dns/groups/{group_id}/zones/{zone_id}/records/{record_id}
 
     # DHCP: server + group → scope → pool / reservation / lease.
     - /api/v1/dhcp/servers

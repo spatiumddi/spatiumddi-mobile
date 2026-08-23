@@ -165,6 +165,13 @@ tried on a phone and got in the way.
   address and the subnet, the record in zone-file form — never "Are you sure?".
 - **Say why a disabled Save is disabled**, in the form near the field at fault.
   A greyed-out button with no stated reason is a dead end.
+- **Deleting asks the operator to type the name.** `DeleteConfirmationSheet`.
+  Two taps clears non-negotiable #6 for most things; it does not clear it for a
+  live DNS record, whose retraction reaches every server in the group before the
+  sheet has dismissed. The platform gates its own blast-radius operations the
+  same way (typed-CIDR on subnet resize), so this is house style on both sides.
+  Say **what will happen**, not "this cannot be undone" — the two deletes this
+  app can make differ, and getting the copy backwards is worse than none.
 - **Every screen that takes text gets `.dismissableKeyboard()`.** It adds the
   keyboard-dismiss glyph above the keyboard and drag-to-dismiss on the scroll
   view. Not optional on numeric fields: `.numberPad` has no Return key, so

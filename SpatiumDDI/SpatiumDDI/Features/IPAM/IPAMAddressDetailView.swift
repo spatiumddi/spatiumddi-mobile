@@ -24,8 +24,15 @@ struct IPAMAddressDetailView: View {
     let subnet: Components.Schemas.SubnetResponse
     /// The space, block and subnet this address was reached through.
     var trail: [String] = []
+    /// Called when this address was edited or removed, so the list behind can
+    /// refetch rather than keep showing what it had.
+    var onChanged: () -> Void = {}
 
     @State private var state: LoadState<Components.Schemas.IPAddressResponse> = .idle
+    @State private var isEditing = false
+    @State private var deletion: DeleteAddressModel?
+    @Environment(Permissions.self) private var permissions
+    @Environment(\.dismiss) private var dismiss
 
     /// The freshly-fetched record where one arrived, else what the list had.
     private var current: Components.Schemas.IPAddressResponse {
@@ -174,6 +181,59 @@ struct IPAMAddressDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
+        .toolbar {
+            // A courtesy gate — non-negotiable #4. The server enforces this
+            // independently and both sheets report a 403 honestly.
+            if permissions.canWrite("subnet", "ip_address", id: subnet.id) {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button("Edit", systemImage: "pencil") { isEditing = true }
+                        Button("Delete", systemImage: "trash", role: .destructive) {
+                            deletion = DeleteAddressModel(session: session, address: current)
+                        }
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $isEditing) {
+            EditAddressView(
+                session: session,
+                address: current,
+                subnet: subnet,
+                onSaved: { saved in
+                    // Shown immediately rather than waiting for a refetch: the
+                    // server's response is the authority on what was written,
+                    // including the FQDN it recomputed.
+                    state = .loaded(saved)
+                    onChanged()
+                },
+                onDismiss: { isEditing = false }
+            )
+        }
+        .sheet(item: $deletion) { model in
+            DeleteConfirmationSheet(
+                subject: model.subject,
+                title: "Delete this address?",
+                consequence: model.consequence,
+                caution: model.caution,
+                failure: model.failure,
+                isDeleting: model.isDeleting,
+                onDelete: {
+                    Task {
+                        guard await model.delete() else { return }
+                        deletion = nil
+                        onChanged()
+                        // The row this screen is about no longer exists as it
+                        // was; staying here would report a state the server no
+                        // longer holds.
+                        dismiss()
+                    }
+                },
+                onCancel: { deletion = nil }
+            )
+        }
     }
 
     private var noIdentityRecorded: Bool {

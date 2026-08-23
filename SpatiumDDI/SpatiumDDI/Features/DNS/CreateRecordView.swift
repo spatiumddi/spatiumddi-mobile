@@ -90,12 +90,7 @@ struct CreateRecordView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    // The record exists by then; "Cancel" would imply otherwise.
-                    if model.hasCreated {
-                        Button("Done", action: onDismiss)
-                    } else {
-                        Button("Cancel", role: .cancel, action: onDismiss)
-                    }
+                    Button("Cancel", role: .cancel, action: onDismiss)
                 }
                 // In the bar for the same reason as the allocate sheet: at the
                 // foot of the form it is the one control the keyboard covers.
@@ -206,25 +201,18 @@ struct CreateRecordView: View {
             Section("Not created") {
                 Label(message, systemImage: "xmark.octagon.fill").foregroundStyle(.red)
             }
-        case .created(let record):
-            Section("Created") {
-                Label {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: record.fqdn).font(.body.monospaced())
-                        Text(verbatim: "\(record.recordType)  \(record.value)")
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                } icon: {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                }
-            }
+        case .created:
+            // Dismissed on success; on screen for one frame at most.
+            EmptyView()
         }
     }
 
     private func submit() async {
         guard let created = await model.submit() else { return }
+        // Back to the zone, which refetches — the list is a better report of
+        // what was written than a banner describing it.
         onCreated(created)
+        onDismiss()
     }
 }
 
@@ -392,16 +380,11 @@ final class CreateRecordModel {
                 throw await APIStatusError(status: statusCode, payload: payload)
             }
         } catch {
-            // A 422 whose `detail` is a plain string fails to decode inside the
-            // generated client, so the status has to be recovered from the
-            // `ClientError` before it can be described. Written out rather than
-            // with `??` because the right-hand side is `async`.
-            var status = error as? APIStatusError
-            if status == nil { status = await APIStatusError.recovered(from: error) }
-            if let status {
-                submission = .failed(APIErrorMessage.describeWrite(status))
-            } else {
-                submission = .failed(APIErrorMessage.describe(error))
+            // Records have no soft-conflict path — DNS has no duplicate check,
+            // so a 409 here would be a real one — but the status recovery and
+            // the write wording are the same problem either way.
+            if case .failed(let message) = await WriteFailure.classify(error) {
+                submission = .failed(message)
             }
             return nil
         }

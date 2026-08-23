@@ -76,14 +76,7 @@ struct AllocateAddressView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    // "Cancel" after something was created would misdescribe
-                    // what closing the sheet does — the address is already
-                    // allocated and nothing here undoes it.
-                    if model.hasCreated {
-                        Button("Done", action: onDismiss)
-                    } else {
-                        Button("Cancel", role: .cancel, action: onDismiss)
-                    }
+                    Button("Cancel", role: .cancel, action: onDismiss)
                 }
                 // The primary action lives in the bar, not at the foot of the
                 // form: at the foot it is the one control the keyboard covers,
@@ -291,25 +284,21 @@ struct AllocateAddressView: View {
                     .foregroundStyle(.red)
             }
 
-        case .created(let address):
-            Section("Allocated") {
-                Label {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: address.address).font(.body.monospaced())
-                        if let fqdn = address.fqdn, !fqdn.isEmpty {
-                            Text(verbatim: fqdn).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                } icon: {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                }
-            }
+        case .created:
+            // The sheet dismisses on success, so this state is only ever on
+            // screen for the frame that starts the dismissal.
+            EmptyView()
         }
     }
 
     private func submit(force: Bool) async {
         guard let created = await model.submit(force: force) else { return }
+        // Straight back to the subnet, which refetches and shows the new row
+        // with the fields only the server can fill in — the FQDN it published,
+        // the vendor, the pool membership. Holding the sheet open on a success
+        // banner would mean reading a worse copy of what is behind it.
         onCreated(created)
+        onDismiss()
     }
 }
 
@@ -522,23 +511,9 @@ final class AllocateAddressModel {
                 throw await APIStatusError(status: statusCode, payload: payload)
             }
         } catch {
-            // A 422 whose `detail` is a plain string fails to decode inside the
-            // generated client, so the status has to be recovered from the
-            // `ClientError` before it can be described. Written out rather than
-            // with `??` because the right-hand side is `async`.
-            var recovered = error as? APIStatusError
-            if recovered == nil { recovered = await APIStatusError.recovered(from: error) }
-            guard let status = recovered else {
-                submission = .failed(APIErrorMessage.describe(error))
-                return nil
-            }
-            // Only an unforced attempt can be soft: re-sending with `force`
-            // already waived these, so a second `requires_confirmation` would
-            // mean something else went wrong and must not loop.
-            if !force, let collision = status.collision, collision.requiresConfirmation {
-                submission = .confirmable(collision.warnings)
-            } else {
-                submission = .failed(APIErrorMessage.describeWrite(status))
+            switch await WriteFailure.classify(error, forced: force) {
+            case .confirmable(let warnings): submission = .confirmable(warnings)
+            case .failed(let message): submission = .failed(message)
             }
             return nil
         }

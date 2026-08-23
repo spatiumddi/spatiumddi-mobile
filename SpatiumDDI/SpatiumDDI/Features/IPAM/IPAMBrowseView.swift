@@ -247,7 +247,8 @@ struct IPAMAddressesView: View {
                                     session: session,
                                     address: address,
                                     subnet: subnet,
-                                    trail: trail + [subnet.network]
+                                    trail: trail + [subnet.network],
+                                    onChanged: { Task { await fetch() } }
                                 )
                             } label: {
                                 AddressRow(address: address)

@@ -8,10 +8,12 @@ import SwiftUI
 
 /// DNS browse: group → zone → record.
 ///
-/// Reading, plus one write: adding a record to a zone. A mistyped record is a
-/// production outage with a TTL attached, so creation goes through its own
-/// sheet, states the record in zone-file form before sending, and stops there —
-/// editing and deleting live records stay desktop work.
+/// Reading, plus the three writes a zone needs: adding a record, correcting one,
+/// and removing one. A mistyped record is a production outage with a TTL
+/// attached, so each goes through its own sheet and states the record in
+/// zone-file form before anything is sent — and deleting additionally asks the
+/// operator to type the name, because the retraction is pushed to every server
+/// in the group immediately rather than at some later sync.
 struct DNSBrowseView: View {
     let session: ControlPlaneSession
 
@@ -165,7 +167,18 @@ struct DNSZoneDetailView: View {
     @State private var query = ""
     @State private var typeFilter: String?
     @State private var isCreating = false
+    @State private var editing: EditingRecord?
+    @State private var deletion: DeleteRecordModel?
     @Environment(Permissions.self) private var permissions
+
+    /// Whether this zone accepts hand-made changes at all.
+    ///
+    /// A synthesised zone is owned by its reconciler: the server refuses, and
+    /// anything that got through would be overwritten on the next sync.
+    private var isEditable: Bool {
+        zone.tailscaleTenantId == nil
+            && permissions.canWrite("dns_record", "dns_zone", "dns_group", id: zone.id)
+    }
 
     /// Record types present in what has been loaded, most common first.
     private var presentTypes: [String] {
@@ -233,7 +246,38 @@ struct DNSZoneDetailView: View {
                     if visible.isEmpty {
                         NoMatchesView(query: query, filterDescription: "No record matches this filter.")
                     } else {
-                        ForEach(visible, id: \.id) { RecordRow(record: $0) }
+                        ForEach(visible, id: \.id) { record in
+                            if isEditable {
+                                Button {
+                                    editing = EditingRecord(record)
+                                } label: {
+                                    RecordRow(record: record)
+                                }
+                                .buttonStyle(.plain)
+                                .swipeActions(edge: .trailing) {
+                                    // Destructive, so it opens the typed
+                                    // confirmation rather than deleting — a
+                                    // swipe is exactly the gesture that happens
+                                    // by accident in a pocket.
+                                    Button(role: .destructive) {
+                                        deletion = DeleteRecordModel(
+                                            session: session, group: group, zone: zone,
+                                            record: record
+                                        )
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                    Button {
+                                        editing = EditingRecord(record)
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    .tint(.indigo)
+                                }
+                            } else {
+                                RecordRow(record: record)
+                            }
+                        }
                     }
                 }
             } header: {
@@ -260,9 +304,7 @@ struct DNSZoneDetailView: View {
             // A courtesy only — non-negotiable #4. A synthesised zone is
             // excluded here as well as in the sheet, because the reconciler
             // owns it and no grant makes a manual record survive the next sync.
-            if zone.tailscaleTenantId == nil,
-                permissions.canWrite("dns_record", "dns_zone", "dns_group", id: zone.id)
-            {
+            if isEditable {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isCreating = true
@@ -279,6 +321,37 @@ struct DNSZoneDetailView: View {
                 zone: zone,
                 onCreated: { _ in Task { await fetch() } },
                 onDismiss: { isCreating = false }
+            )
+        }
+        .sheet(item: $editing) { target in
+            EditRecordView(
+                session: session,
+                group: group,
+                zone: zone,
+                record: target.record,
+                // Refetched rather than patched in place: saving bumps the
+                // zone's serial, and a list still showing the old one would
+                // misreport what the servers have been told.
+                onSaved: { _ in Task { await fetch() } },
+                onDismiss: { editing = nil }
+            )
+        }
+        .sheet(item: $deletion) { model in
+            DeleteConfirmationSheet(
+                subject: model.subject,
+                title: "Delete this record?",
+                consequence: model.consequence,
+                caution: model.caution,
+                failure: model.failure,
+                isDeleting: model.isDeleting,
+                onDelete: {
+                    Task {
+                        guard await model.delete() else { return }
+                        deletion = nil
+                        await fetch()
+                    }
+                },
+                onCancel: { deletion = nil }
             )
         }
     }
@@ -316,6 +389,18 @@ struct DNSZoneDetailView: View {
             }
         }
     }
+}
+
+/// The record a sheet is currently open on.
+///
+/// A wrapper rather than a retroactive `Identifiable` on the generated type:
+/// conformances added to a type another module owns break the day that module
+/// adds its own, and the generated client is regenerated on every re-pin.
+private struct EditingRecord: Identifiable {
+    let record: Components.Schemas.RecordResponse
+    var id: String { record.id }
+
+    init(_ record: Components.Schemas.RecordResponse) { self.record = record }
 }
 
 private struct RecordRow: View {
