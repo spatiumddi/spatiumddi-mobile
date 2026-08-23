@@ -20,6 +20,8 @@ struct SignInView: View {
     var body: some View {
         NavigationStack {
             Form {
+                BrandHeader()
+
                 Section {
                     LabeledContent("Server", value: model.address.displayName)
                     Button("Change Server", action: onChangeServer)

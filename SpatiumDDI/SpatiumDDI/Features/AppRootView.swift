@@ -102,6 +102,22 @@ struct SignedInView: View {
             if let session {
                 NavigationSplitView {
                     List(selection: $section) {
+                        Section {
+                            HStack(spacing: 10) {
+                                BrandMark(size: 30)
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text("SpatiumDDI").font(.headline)
+                                    Text(session.address.displayName)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                            .accessibilityElement(children: .combine)
+                            .listRowBackground(Color.clear)
+                        }
+
                         ForEach(AppSection.Group.allCases) { group in
                             let available = group.sections.filter {
                                 features.isAvailable($0.featureModule)
@@ -117,7 +133,8 @@ struct SignedInView: View {
                             }
                         }
                     }
-                    .navigationTitle("SpatiumDDI")
+                    .navigationTitle("")
+                    .navigationBarTitleDisplayMode(.inline)
                 } detail: {
                     // A NavigationStack here is the documented split-view
                     // pattern: SwiftUI merges it with the sidebar's stack when

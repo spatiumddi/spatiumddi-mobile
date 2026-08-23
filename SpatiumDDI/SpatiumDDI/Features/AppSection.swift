@@ -93,9 +93,12 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
     /// gated here.
     var featureModule: String? {
         switch self {
+        // Domains deliberately absent: there is no `network.domain` module —
+        // domain tracking is always on. Naming a module the server does not
+        // have would hide the screen permanently, because the gate only fails
+        // open while the module list is unknown.
         case .changeRequests: "governance.approvals"
         case .newDevices: "security.new_device_watch"
-        case .domains: "network.domain"
         case .certificates: "security.tls_certs"
         case .vlans: "network.vlan"
         case .vrfs: "network.vrf"

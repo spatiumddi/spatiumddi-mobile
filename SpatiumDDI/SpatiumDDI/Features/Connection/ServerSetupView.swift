@@ -17,6 +17,8 @@ struct ServerSetupView: View {
     var body: some View {
         NavigationStack {
             Form {
+                BrandHeader(caption: "Connect to your control plane.")
+
                 Section {
                     TextField("ddi.internal.example", text: $model.addressInput)
                         .textContentType(.URL)
@@ -64,7 +66,8 @@ struct ServerSetupView: View {
 
                 statusSection
             }
-            .navigationTitle("Connect")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $model.isScanning) {
                 TokenScannerView(
                     onScanned: { model.apply($0) },

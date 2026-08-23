@@ -221,4 +221,150 @@ struct SurfaceIntegrationTests {
 
         try store.removePin(for: #require(LiveServer.address))
     }
+
+    // MARK: - The wider operator surfaces
+
+    /// Every screen added for web-console parity, against the live control
+    /// plane. These are the ones most likely to be wrong: they were written
+    /// from the generated types alone, because nine of them answered 404 on a
+    /// stock lab until their feature modules were switched on.
+    @Test("Domains and TLS certificates decode, with the fields the expiry sort needs")
+    func expirySurfacesDecode() async throws {
+        let (session, store) = try await LiveServer.pinnedSession()
+        defer { session.invalidate() }
+
+        let domains = try await session.client
+            .listDomainsApiV1DomainsGet(query: .init(page: 1, pageSize: 50)).ok.body.json
+        #expect(domains.total >= domains.items.count)
+        #expect(domains.items.allSatisfy { !$0.name.isEmpty })
+
+        let certs = try await session.client
+            .listTargetsApiV1TlsCertsGet(query: .init(limit: 50)).ok.body.json
+        #expect(certs.total >= certs.items.count)
+        #expect(certs.items.allSatisfy { !$0.host.isEmpty && $0.port > 0 && !$0.state.isEmpty })
+
+        try store.removePin(for: #require(LiveServer.address))
+    }
+
+    @Test("Network modelling surfaces decode")
+    func networkSurfacesDecode() async throws {
+        let (session, store) = try await LiveServer.pinnedSession()
+        defer { session.invalidate() }
+
+        let vrfs = try await session.client.listVrfsApiV1VrfsGet(query: .init(limit: 50)).ok.body.json
+        #expect(vrfs.allSatisfy { !$0.name.isEmpty })
+
+        let routers = try await session.client.listRoutersApiV1VlansRoutersGet().ok.body.json
+        #expect(routers.allSatisfy { !$0.name.isEmpty })
+        // Walk into one router's VLANs — the nested call is the one a compile
+        // cannot vouch for.
+        if let router = routers.first {
+            let vlans = try await session.client
+                .listVlansApiV1VlansRoutersRouterIdVlansGet(path: .init(routerId: router.id))
+                .ok.body.json
+            #expect(vlans.allSatisfy { $0.vlanId > 0 })
+        }
+
+        let circuits = try await session.client
+            .listCircuitsApiV1CircuitsGet(query: .init(limit: 50)).ok.body.json
+        #expect(circuits.items.allSatisfy { !$0.name.isEmpty && !$0.transportClass.isEmpty })
+
+        let asns = try await session.client.listAsnsApiV1AsnsGet(query: .init(limit: 50)).ok.body.json
+        #expect(asns.items.allSatisfy { $0.number > 0 && !$0.registry.isEmpty })
+
+        try store.removePin(for: #require(LiveServer.address))
+    }
+
+    @Test("Ownership entities decode")
+    func ownershipDecodes() async throws {
+        let (session, store) = try await LiveServer.pinnedSession()
+        defer { session.invalidate() }
+
+        let customers = try await session.client
+            .listCustomersApiV1CustomersGet(query: .init(limit: 50)).ok.body.json
+        #expect(customers.items.allSatisfy { !$0.name.isEmpty && !$0.status.isEmpty })
+
+        let sites = try await session.client
+            .listSitesApiV1SitesGet(query: .init(limit: 50)).ok.body.json
+        #expect(sites.items.allSatisfy { !$0.name.isEmpty && !$0.kind.isEmpty })
+
+        let providers = try await session.client
+            .listProvidersApiV1ProvidersGet(query: .init(limit: 50)).ok.body.json
+        #expect(providers.items.allSatisfy { !$0.name.isEmpty && !$0.kind.isEmpty })
+
+        try store.removePin(for: #require(LiveServer.address))
+    }
+
+    @Test("Administration surfaces decode")
+    func adminSurfacesDecode() async throws {
+        let (session, store) = try await LiveServer.pinnedSession()
+        defer { session.invalidate() }
+
+        let users = try await session.client.listUsersApiV1UsersGet().ok.body.json
+        #expect(!users.isEmpty)
+        #expect(users.allSatisfy { !$0.username.isEmpty && !$0.authSource.isEmpty })
+
+        let sessions = try await session.client.listAllSessionsApiV1SessionsGet().ok.body.json
+        #expect(sessions.allSatisfy { !$0.username.isEmpty })
+        // The session doing the asking is a token, not a browser session, so
+        // "exactly one is current" is not a safe assertion — but no more than
+        // one ever may be.
+        #expect(sessions.filter(\.isCurrent).count <= 1)
+
+        let tokens = try await session.client.listTokensApiV1ApiTokensGet().ok.body.json
+        #expect(tokens.allSatisfy { !$0.name.isEmpty && !$0.prefix.isEmpty })
+        // The secret is shown once at mint time and must never come back on a
+        // list. If this ever fails, the app is displaying live credentials.
+        #expect(tokens.allSatisfy { $0.prefix.count < 32 })
+
+        let audit = try await session.client.listAuditLogApiV1AuditGet(query: .init(limit: 25)).ok.body.json
+        #expect(audit.total >= audit.items.count)
+        #expect(audit.items.allSatisfy { !$0.action.isEmpty && !$0.result.isEmpty })
+
+        let trash = try await session.client
+            .listTrashApiV1AdminTrashGet(query: .init(limit: 25)).ok.body.json
+        #expect(trash.items.allSatisfy { !$0._type.isEmpty })
+
+        try store.removePin(for: #require(LiveServer.address))
+    }
+
+    @Test("Change requests and new-device sightings decode")
+    func operationsSurfacesDecode() async throws {
+        let (session, store) = try await LiveServer.pinnedSession()
+        defer { session.invalidate() }
+
+        let requests = try await session.client
+            .listRequestsApiV1ChangeRequestsGet(query: .init(limit: 50)).ok.body.json
+        #expect(requests.allSatisfy { !$0.state.isEmpty && !$0.operation.isEmpty })
+
+        let sightings = try await session.client
+            .listSightingsApiV1NewDevicesSightingsGet(query: .init(page: 1, pageSize: 50))
+            .ok.body.json
+        #expect(sightings.total >= sightings.items.count)
+        #expect(sightings.items.allSatisfy { !$0.macAddress.isEmpty && !$0.classification.isEmpty })
+
+        try store.removePin(for: #require(LiveServer.address))
+    }
+
+    /// The gate the sidebar depends on.
+    @Test("The feature-module list is readable and reports a mix of states")
+    func featureModulesDecode() async throws {
+        let (session, store) = try await LiveServer.pinnedSession()
+        defer { session.invalidate() }
+
+        let modules = try await session.client
+            .listFeatureModulesApiV1AdminFeatureModulesGet().ok.body.json
+        #expect(!modules.isEmpty)
+        #expect(modules.allSatisfy { !$0.id.isEmpty && !$0.label.isEmpty && !$0.group.isEmpty })
+        // Every section the sidebar gates must name a module the server knows
+        // about — a typo here would silently hide a screen forever.
+        let known = Set(modules.map(\.id))
+        for section in AppSection.allCases {
+            if let module = section.featureModule {
+                #expect(known.contains(module), "\(section.title) gates on unknown module \(module)")
+            }
+        }
+
+        try store.removePin(for: #require(LiveServer.address))
+    }
 }
