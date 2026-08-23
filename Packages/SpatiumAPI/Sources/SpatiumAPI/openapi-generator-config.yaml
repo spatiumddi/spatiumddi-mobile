@@ -145,6 +145,29 @@ filter:
     - /api/v1/dns/servers/{server_id}/recent-events
     - /api/v1/logs/sources
 
+    # ── Diagnostics, run from the control plane ───────────────────────────
+    # The whole point is the vantage point: these answer "can the *server*
+    # reach it / resolve it", which is the question an operator standing in a
+    # rack cannot answer from the device in their hand. POST because the
+    # parameters are a body; only Wake-on-LAN changes anything, and what it
+    # changes is a power state.
+    #
+    # `target` on these requests selects which appliance runs the tool. The app
+    # always omits it, which means the control plane itself — adding a picker
+    # is worth doing only once a phone user has an appliance fleet to pick from.
+    - /api/v1/tools/ping
+    - /api/v1/tools/traceroute
+    - /api/v1/tools/mtr
+    - /api/v1/tools/dig
+    - /api/v1/tools/whois
+    - /api/v1/tools/port-test
+    - /api/v1/tools/tls-cert
+    - /api/v1/tools/mac-vendor
+    - /api/v1/tools/dns-propagation
+    - /api/v1/tools/wol
+    # Deliberately absent: /tools/firewall-logs (a desk-sized log search),
+    # /nmap/* and /pcap/* (a phone is a bad place to run either).
+
     # The DHCP and DNS protocol logs — the conversation itself, filterable by
     # MAC or client IP. These are POST because the filter is a body, not
     # because they change anything: they read a log and return rows. The
