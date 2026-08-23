@@ -82,7 +82,17 @@ final class AppFlowModel {
     /// the server list stays there.
     func reconsiderIfUntouched() {
         guard isLaunchStage else { return }
-        restore()
+        // Only a stage that concluded *there is nothing to unlock* is worth
+        // revisiting. Re-running `restore()` from anywhere else undoes work
+        // the operator has already done — from `.signedIn` it throws them back
+        // to the lock screen, they unlock, the next scene-phase change throws
+        // them back again, and the app loops. Which is exactly what it did.
+        switch stage {
+        case .servers, .addServer:
+            restore()
+        case .signIn, .locked, .signedIn:
+            return
+        }
     }
 
     /// The chosen servers are configuration, not response data — non-negotiable
@@ -187,6 +197,10 @@ final class AppFlowModel {
 
     func unlock() async {
         guard case .locked(let server, _) = stage else { return }
+        // Unlocking is the operator acting, so whatever launch concluded is no
+        // longer the current state — and must not be restored over the top of
+        // the session they just authenticated into.
+        isLaunchStage = false
         do {
             let stored = try await tokens.token(
                 for: server.address,
