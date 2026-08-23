@@ -64,7 +64,8 @@ struct AppRootView: View {
                 model: SignInModel(server: server, prefilledToken: flow.pendingToken) { token in
                     flow.signedIn(with: token, to: server)
                 },
-                onChangeServer: { flow.showServers() }
+                onChangeServer: { flow.showServers() },
+                absence: flow.tokenAbsence
             )
 
         case .locked(let server, let message):

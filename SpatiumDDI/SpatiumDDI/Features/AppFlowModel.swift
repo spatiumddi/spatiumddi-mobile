@@ -48,6 +48,26 @@ final class AppFlowModel {
     /// deliberate navigation has happened since.
     private var isLaunchStage = true
 
+    /// Why the app believes there is no stored token to unlock, when a server
+    /// was configured and one was expected.
+    ///
+    /// Surfaced on the sign-in screen rather than kept for a debugger. Being
+    /// asked to enrol again is alarming, and "the Keychain answered -25300" is
+    /// both the honest reason and the thing that makes the next report useful
+    /// — twice now this has been diagnosed by inference from a symptom, which
+    /// is slower and less reliable than the device simply saying what happened.
+    private(set) var tokenAbsence: String?
+
+    /// Records the Keychain's own answer for a server that should have a token.
+    private func noteAbsence(for server: StoredServer) {
+        switch tokens.presence(for: server.address) {
+        case .present, .absent:
+            tokenAbsence = nil
+        case .unknown(let status):
+            tokenAbsence = "The Keychain could not be read (status \(status))."
+        }
+    }
+
     /// Re-reads the stored state if nothing has been chosen since launch.
     ///
     /// `restore()` runs in `init`, which is not always a moment the Keychain
@@ -86,6 +106,9 @@ final class AppFlowModel {
         {
             stage = .locked(current, message: nil)
         } else {
+            if let current = servers.first(where: { $0.id == registry.currentID() }) {
+                noteAbsence(for: current)
+            }
             stage = .servers
         }
     }
@@ -269,7 +292,12 @@ final class AppFlowModel {
         token = nil
         pendingToken = nil
         registry.setCurrentID(server.id)
-        stage = tokens.hasToken(for: server.address) ? .locked(server, message: nil) : .signIn(server)
+        if tokens.hasToken(for: server.address) {
+            stage = .locked(server, message: nil)
+        } else {
+            noteAbsence(for: server)
+            stage = .signIn(server)
+        }
     }
 
     /// Forget a server entirely: its token, its certificate pin, its name.

@@ -206,7 +206,18 @@ nonisolated struct TokenStore: Sendable {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account(for: address),
             kSecReturnAttributes as String: true,
-            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
+            // **Fail, not Skip.** `kSecUseAuthenticationUISkip` does not mean
+            // "answer without prompting" — it means an item that *would* need
+            // authentication is silently omitted from the results, which comes
+            // back as `errSecItemNotFound` and is indistinguishable from having
+            // no token at all. Every token this app stores is behind an access
+            // control, so Skip reported all of them missing on hardware where
+            // that control is `.biometryCurrentSet`.
+            //
+            // `Fail` returns `errSecInteractionNotAllowed` for exactly that
+            // case, which is the answer wanted: the item is there, it just
+            // cannot be handed over without asking someone first.
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
         ]
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -223,7 +234,10 @@ nonisolated struct TokenStore: Sendable {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account(for: address),
             kSecReturnAttributes as String: true,
-            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
+            // Same reasoning as `presence`: Skip hides the very items this is
+            // asked about. Attributes still come back under Fail, because
+            // reading them is not reading the secret.
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
         ]
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }

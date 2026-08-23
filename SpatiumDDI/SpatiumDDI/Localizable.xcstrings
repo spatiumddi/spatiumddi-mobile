@@ -1927,6 +1927,9 @@
     "Your session is no longer valid. Sign in again." : {
       "extractionState" : "extracted_with_value"
     },
+    "Your stored token may still be on this device. Signing in again replaces it." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Your token is held in the Keychain behind biometrics." : {
       "extractionState" : "extracted_with_value"
     },
