@@ -150,11 +150,16 @@ Phase 0 (PWA groundwork) is upstream frontend work — [spatiumddi#902](https://
 These are house style, not taste. Each one exists because the alternative was
 tried on a phone and got in the way.
 
-- **The primary action of a form goes in the navigation bar**, top right, as a
-  **Save** pill (`ToolbarItem(placement: .confirmationAction)`) — never as a row
-  at the foot of the form. At the foot it is the one control the keyboard
-  covers, and on a long form it is also the one you have to go looking for.
-  Cancel pairs with it on the left (`.cancellationAction`).
+- **A sheet that creates or edits something puts its action in the navigation
+  bar**, top right, as a **Save** pill
+  (`ToolbarItem(placement: .confirmationAction)`) — never as a row at the foot
+  of the form. At the foot it is the one control the keyboard covers, and on a
+  long form it is also the one you have to go looking for. Cancel pairs with it
+  on the left (`.cancellationAction`).
+  The onboarding screens — Connect, Sign In — deliberately keep a bottom button:
+  each is the end of a linear sequence, and the footer directly under it carries
+  what the operator is agreeing to ("stored in the Keychain and unlocked with
+  Face ID"). In the bar that text would be orphaned from its button.
 - **Saving still confirms.** Non-negotiable #6 is unchanged: Save opens the
   confirmation, and the confirmation names the actual thing being written — the
   address and the subnet, the record in zone-file form — never "Are you sure?".
