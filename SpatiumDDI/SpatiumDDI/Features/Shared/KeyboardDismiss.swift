@@ -31,7 +31,14 @@ private struct DismissableKeyboard: ViewModifier {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
+                    // The glyph rather than the word. A keyboard toolbar item
+                    // renders as a floating pill over whatever row it lands on,
+                    // and "Done" makes that pill wide enough to cover the field
+                    // you were just typing in — which is the opposite of the
+                    // problem this is here to solve. The chevron is also the
+                    // conventional "put the keyboard away" symbol, so it needs
+                    // no reading.
+                    Button {
                         // Resigns whichever field is first responder without
                         // this modifier having to know what the fields are.
                         //
@@ -47,7 +54,11 @@ private struct DismissableKeyboard: ViewModifier {
                             from: nil,
                             for: nil
                         )
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
                     }
+                    // An icon on its own says nothing to VoiceOver.
+                    .accessibilityLabel("Hide keyboard")
                 }
             }
     }

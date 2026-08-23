@@ -88,7 +88,7 @@ final class SignInFlowUITests: XCTestCase {
         // numeric fields elsewhere in the app there is no Return key to fall
         // back on.
         XCTAssertTrue(
-            app.buttons["Done"].waitForExistence(timeout: 5),
+            app.buttons["Hide keyboard"].waitForExistence(timeout: 5),
             "No way to dismiss the keyboard while a field is focused"
         )
         attach(app, "06-keyboard-toolbar")

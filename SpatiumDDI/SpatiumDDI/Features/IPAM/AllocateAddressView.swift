@@ -70,23 +70,6 @@ struct AllocateAddressView: View {
                 identitySection
                 dnsSection
                 outcomeSection
-
-                if !model.hasCreated {
-                    Section {
-                        Button {
-                            isConfirming = true
-                        } label: {
-                            HStack {
-                                Text("Allocate…")
-                                Spacer()
-                                if model.isSending { ProgressView() }
-                            }
-                        }
-                        .disabled(!model.canSubmit)
-                    } footer: {
-                        Text("You'll be shown exactly what will be created before anything is sent.")
-                    }
-                }
             }
             .navigationTitle("Allocate Address")
             .dismissableKeyboard()
@@ -100,6 +83,20 @@ struct AllocateAddressView: View {
                         Button("Done", action: onDismiss)
                     } else {
                         Button("Cancel", role: .cancel, action: onDismiss)
+                    }
+                }
+                // The primary action lives in the bar, not at the foot of the
+                // form: at the foot it is the one control the keyboard covers,
+                // and on a long form it is also the one you have to go looking
+                // for. Nothing is sent by this tap — it opens the confirmation.
+                if !model.hasCreated {
+                    ToolbarItem(placement: .confirmationAction) {
+                        if model.isSending {
+                            ProgressView()
+                        } else {
+                            Button("Save") { isConfirming = true }
+                                .disabled(!model.canSubmit)
+                        }
                     }
                 }
             }

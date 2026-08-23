@@ -493,6 +493,9 @@
     "Healthy" : {
       "extractionState" : "extracted_with_value"
     },
+    "Hide keyboard" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Hide token" : {
       "extractionState" : "extracted_with_value"
     },

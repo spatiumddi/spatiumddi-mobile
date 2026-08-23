@@ -67,27 +67,20 @@ struct CreateRecordView: View {
                     structuredSection
                     outcomeSection
 
+                    // Why Save is refusing, said where the fields are rather
+                    // than beside a button that is now in the bar. Without it a
+                    // disabled Save is a dead end with no stated reason.
                     if !model.hasCreated {
                         Section {
-                            Button {
-                                isConfirming = true
-                            } label: {
-                                HStack {
-                                    Text("Create Record…")
-                                    Spacer()
-                                    if model.isSending { ProgressView() }
-                                }
-                            }
-                            .disabled(!model.canSubmit)
-                        } footer: {
                             if let problem = model.localProblem {
                                 Label(problem, systemImage: "exclamationmark.triangle.fill")
+                                    .font(.footnote)
                                     .foregroundStyle(.orange)
-                            } else {
-                                Text(
-                                    "The zone's serial is bumped and the change is pushed to every server in the group."
-                                )
                             }
+                        } footer: {
+                            Text(
+                                "The zone's serial is bumped and the change is pushed to every server in the group."
+                            )
                         }
                     }
                 }
@@ -102,6 +95,18 @@ struct CreateRecordView: View {
                         Button("Done", action: onDismiss)
                     } else {
                         Button("Cancel", role: .cancel, action: onDismiss)
+                    }
+                }
+                // In the bar for the same reason as the allocate sheet: at the
+                // foot of the form it is the one control the keyboard covers.
+                if !model.hasCreated, zone.tailscaleTenantId == nil {
+                    ToolbarItem(placement: .confirmationAction) {
+                        if model.isSending {
+                            ProgressView()
+                        } else {
+                            Button("Save") { isConfirming = true }
+                                .disabled(!model.canSubmit)
+                        }
                     }
                 }
             }
