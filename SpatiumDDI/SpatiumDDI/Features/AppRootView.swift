@@ -106,11 +106,19 @@ struct SignedInView: View {
     /// no obvious way to the rest of the app.
     @State private var section: AppSection?
     @State private var features = FeatureModules()
+    /// Bound so the system can open and close the sidebar itself.
+    ///
+    /// Left at `.automatic` deliberately: that is what keeps the sidebar
+    /// on screen beside the detail on a landscape iPad, and folds it away when
+    /// the window is too narrow to justify it. Pinning it to `.all` would force
+    /// it into portrait and on a Slide Over window, where it leaves no room for
+    /// the screen you actually opened.
+    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
 
     var body: some View {
         Group {
             if let session {
-                NavigationSplitView {
+                NavigationSplitView(columnVisibility: $columnVisibility) {
                     List(selection: $section) {
                         Section {
                             HStack(spacing: 10) {
@@ -168,6 +176,11 @@ struct SignedInView: View {
                         }
                     }
                 }
+                // `.balanced` gives the sidebar its own column beside the
+                // detail. The default would let the detail keep full width and
+                // slide the sidebar over the top of it, which is the wrong
+                // trade on a screen big enough to show both.
+                .navigationSplitViewStyle(.balanced)
             } else {
                 ProgressView()
             }
@@ -232,6 +245,8 @@ struct SignedInView: View {
             TrashView(session: session)
         case .search:
             SearchView(session: session)
+        case .about:
+            AboutView()
         case .server:
             ServerDetailView(
                 address: session.address,

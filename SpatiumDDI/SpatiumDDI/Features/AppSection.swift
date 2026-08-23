@@ -35,6 +35,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
     case trash
     case search
     case server
+    case about
 
     var id: Self { self }
 
@@ -61,6 +62,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .trash: "Trash"
         case .search: "Search"
         case .server: "Server"
+        case .about: "About"
         }
     }
 
@@ -87,6 +89,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .trash: "trash"
         case .search: "magnifyingglass"
         case .server: "gear"
+        case .about: "info.circle"
         }
     }
 
@@ -132,7 +135,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
             case .estate: [.ipam, .dns, .dhcp, .dhcpLog, .domains, .certificates]
             case .network: [.vlans, .vrfs, .circuits, .asns]
             case .administration: [.ownership, .access, .audit, .trash]
-            case .tools: [.search, .server]
+            case .tools: [.search, .server, .about]
             }
         }
     }

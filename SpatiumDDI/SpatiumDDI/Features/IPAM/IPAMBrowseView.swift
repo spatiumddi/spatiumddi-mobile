@@ -50,21 +50,19 @@ struct IPAMBrowseView: View {
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             // Switched rather than `.ok`: the shorthand collapses every status
             // the document doesn't declare — 401, 403, 503 — into an opaque
             // runtime error, and non-negotiable #4 says those must be shown for
             // what they are.
             switch try await session.client.listSpacesApiV1IpamSpacesGet() {
             case .ok(let ok):
-                state = .loaded(try ok.body.json)
+                return try ok.body.json
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
-            case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
         }
     }
 }
@@ -114,7 +112,7 @@ struct IPAMBlocksView: View {
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             // Filtered by the server: `/ipam/blocks` takes a `space_id`, and an
             // estate's worth of blocks is not something to pull down and discard
             // on a phone. The client-side filter stays as a backstop in case the
@@ -124,14 +122,12 @@ struct IPAMBlocksView: View {
             )
             switch response {
             case .ok(let ok):
-                state = .loaded(try ok.body.json.filter { $0.spaceId == space.id })
+                return try ok.body.json.filter { $0.spaceId == space.id }
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
-            case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
         }
     }
 }
@@ -177,20 +173,18 @@ struct IPAMSubnetsView: View {
 
     private func fetch() async {
         state = .loading
-        do {
+        state = await LoadState.fetching {
             let response = try await session.client.listSubnetsApiV1IpamSubnetsGet(
                 query: .init(blockId: block.id)
             )
             switch response {
             case .ok(let ok):
-                state = .loaded(try ok.body.json.filter { $0.blockId == block.id })
+                return try ok.body.json.filter { $0.blockId == block.id }
             case .unprocessableContent:
-                state = .failed(APIErrorMessage.describe(status: 422))
-            case .undocumented(let statusCode, _):
-                state = .failed(APIErrorMessage.describe(status: statusCode))
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
             }
-        } catch {
-            state = .failed(APIErrorMessage.describe(error))
         }
     }
 }

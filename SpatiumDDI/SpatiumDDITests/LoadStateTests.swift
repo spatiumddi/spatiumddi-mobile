@@ -134,3 +134,25 @@ struct FeatureModuleErrorTests {
         #expect(modules.isAvailable(nil))
     }
 }
+
+@Suite("Cancellation is never shown raw")
+struct CancellationMessageTests {
+    /// This exact string reached a screen: "The operation couldn't be completed.
+    /// (Swift.CancellationError error 1.)" on the IPAM list, because that view
+    /// still had its own `catch` instead of going through `LoadState.fetching`.
+    /// Swift's own error text is never something to put in front of an operator.
+    @Test("A CancellationError never renders as Swift's own description")
+    func cancellationIsNotRaw() {
+        let message = APIErrorMessage.describe(CancellationError())
+        #expect(!message.contains("CancellationError"))
+        #expect(!message.contains("couldn't be completed"))
+        #expect(message == "The request was cancelled.")
+    }
+
+    @Test("A cancelled URL request is not raw either")
+    func urlCancellationIsNotRaw() {
+        let message = APIErrorMessage.describe(URLError(.cancelled))
+        #expect(!message.contains("NSURLError"))
+        #expect(message.contains("cancelled"))
+    }
+}

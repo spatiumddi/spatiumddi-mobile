@@ -32,6 +32,14 @@ nonisolated enum APIErrorMessage {
 
     static func describe(_ error: any Error) -> String {
         if let status = error as? APIStatusError { return describe(status) }
+
+        // Cancellation is never news. It reached a screen once — as
+        // "The operation couldn't be completed. (Swift.CancellationError error
+        // 1.)" on the IPAM list — because a view still hand-rolled its own
+        // catch. Callers should route through `LoadState.fetching`, which folds
+        // cancellation into `.idle`, but this is the backstop: raw Swift error
+        // text is never something to show an operator.
+        if error is CancellationError { return "The request was cancelled." }
         if let client = error as? ClientError {
             if let status = (client.response)?.status.code {
                 return describe(status: status)
