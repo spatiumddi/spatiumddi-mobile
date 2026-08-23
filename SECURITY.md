@@ -111,9 +111,12 @@ A changed certificate challenges again rather than silently continuing.
   *made* to speak HTTP very much is.
 - **Certificate pinning is per-`host:port`.** `example.com:443` and
   `example.com:8443` are distinct trust entries by design.
-- **Tokens used in CI or test runs are considered disclosed.** `xcodebuild` dumps
-  its launch environment to the log, so any token passed that way is treated as
-  compromised and revoked. This is documented in
+- **Tokens are passed to tests by path, not by value.** `xcodebuild` dumps its
+  entire launch environment into the build log, so a token in
+  `SPATIUM_LIVE_TOKEN` lands in plaintext on disk and in CI artefacts. The test
+  harness therefore prefers `SPATIUM_LIVE_TOKEN_FILE`, which carries a path —
+  and a path is not a secret. Any token that has been passed by value should be
+  treated as disclosed and revoked. See
   [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Supply chain

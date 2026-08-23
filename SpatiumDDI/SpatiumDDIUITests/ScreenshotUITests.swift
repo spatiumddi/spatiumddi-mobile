@@ -30,7 +30,16 @@ final class ScreenshotUITests: XCTestCase {
         continueAfterFailure = false
         let environment = ProcessInfo.processInfo.environment
         host = environment["SPATIUM_LIVE_HOST"] ?? ""
-        token = environment["SPATIUM_LIVE_TOKEN"] ?? ""
+        // Prefer a path over the value: xcodebuild dumps the launch
+        // environment to its log, so a token passed directly is written to
+        // disk in plaintext. See LiveServer.token.
+        if let path = environment["SPATIUM_LIVE_TOKEN_FILE"], !path.isEmpty,
+            let contents = try? String(contentsOfFile: path, encoding: .utf8)
+        {
+            token = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            token = environment["SPATIUM_LIVE_TOKEN"] ?? ""
+        }
         try XCTSkipIf(host.isEmpty || token.isEmpty, "No live control plane configured.")
         if let directory = environment["SPATIUM_SHOT_DIR"], !directory.isEmpty {
             shotDirectory = URL(fileURLWithPath: directory)

@@ -73,9 +73,10 @@ in front of it with the same dev certificate:
 
 ## Tests
 
-Four tiers, with different requirements. A full run against a live control plane
-is 92 tests, all passing; tiers 3 and 4 skip when no lab is configured, so a
-contributor without one still gets a green, meaningful run.
+Four tiers, with different requirements. `dev-control-plane.sh test` runs 98 of
+them green; the contract tier adds ten more when a lab is configured. Tiers 3
+and 4 skip when one isn't, so a contributor without a control plane still gets a
+green — and still meaningful — run.
 
 ### 1. Unit tests — no server needed
 
@@ -102,8 +103,11 @@ bugs this tier has caught were of that kind — dropped nullable fields, and
 microsecond timestamps the decoder rejected.
 
 ```bash
+# Pass a PATH, not the token itself — see the warning below.
+printf '%s' 'sddi_…' > /tmp/spatium-token && chmod 600 /tmp/spatium-token
+
 export TEST_RUNNER_SPATIUM_LIVE_HOST='ddi.example.com'
-export TEST_RUNNER_SPATIUM_LIVE_TOKEN='sddi_…'
+export TEST_RUNNER_SPATIUM_LIVE_TOKEN_FILE='/tmp/spatium-token'
 
 xcodebuild test -project SpatiumDDI/SpatiumDDI.xcodeproj -scheme SpatiumDDI \
   -destination "$(./scripts/pick-simulator.py)" \
@@ -114,9 +118,16 @@ xcodebuild test -project SpatiumDDI/SpatiumDDI.xcodeproj -scheme SpatiumDDI \
 They skip when those variables are unset, so they never block a contributor
 without a lab.
 
-> **Mint a short-lived token, and revoke it when you're done.** `xcodebuild`
-> dumps the launch environment into its log, so a token passed this way ends up
-> in plaintext on disk. Treat any token used this way as disclosed.
+> **Never put the token in `SPATIUM_LIVE_TOKEN`.** `xcodebuild` dumps its entire
+> launch environment into the build log, so a token passed by value lands in
+> plaintext on disk — and in CI artefacts, and in anything scraping build
+> output. That is not hypothetical: it is how two lab tokens had to be revoked
+> while this app was being written.
+>
+> `SPATIUM_LIVE_TOKEN_FILE` takes a path instead, and a path is not a secret.
+> The by-value variable is still read as a fallback, so existing setups keep
+> working — but prefer the file, mint short-lived tokens, and revoke them when
+> you're done.
 
 ### 4. Screenshot / end-to-end — live server, and produces store assets
 
@@ -127,7 +138,7 @@ actually running, not a mockup.
 
 ```bash
 export TEST_RUNNER_SPATIUM_LIVE_HOST='ddi.example.com'
-export TEST_RUNNER_SPATIUM_LIVE_TOKEN='sddi_…'
+export TEST_RUNNER_SPATIUM_LIVE_TOKEN_FILE='/tmp/spatium-token'
 export TEST_RUNNER_SPATIUM_SHOT_DIR='/tmp/shots'
 
 xcodebuild test … -only-testing:SpatiumDDIUITests/ScreenshotUITests
