@@ -151,6 +151,12 @@
     "Access" : {
       "extractionState" : "extracted_with_value"
     },
+    "Acknowledge" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Acknowledge this device?" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Actions" : {
       "extractionState" : "extracted_with_value"
     },
@@ -229,10 +235,19 @@
     "Apply status" : {
       "extractionState" : "extracted_with_value"
     },
+    "Approve" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Approve and run this change?" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Approving and rejecting are Phase 2 — decide this in the web console for now." : {
       "extractionState" : "extracted_with_value"
     },
     "Approving pins this exact certificate for %@. If the server later presents a different one, you'll be asked again." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Approving runs the change now, as you. Rejecting declines it and changes nothing." : {
       "extractionState" : "extracted_with_value"
     },
     "At" : {
@@ -392,6 +407,12 @@
       "extractionState" : "extracted_with_value"
     },
     "DNSSEC" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Decide" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Deciding change requests needs the approve permission on this control plane." : {
       "extractionState" : "extracted_with_value"
     },
     "Decision" : {
@@ -674,6 +695,12 @@
       "extractionState" : "extracted_with_value"
     },
     "Issuer" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "It stops counting as new. This says you have seen it, and changes nothing about what it is allowed to do." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "It stops counting as unresolved. It fires again if the condition comes back." : {
       "extractionState" : "extracted_with_value"
     },
     "Key" : {
@@ -961,6 +988,9 @@
     "No zone matches this filter." : {
       "extractionState" : "extracted_with_value"
     },
+    "Not acknowledged" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Not after" : {
       "extractionState" : "extracted_with_value"
     },
@@ -973,7 +1003,13 @@
     "Not created" : {
       "extractionState" : "extracted_with_value"
     },
+    "Not decided" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Not deleted" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Not resolved" : {
       "extractionState" : "extracted_with_value"
     },
     "Not saved" : {
@@ -986,6 +1022,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Note" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Note (optional)" : {
       "extractionState" : "extracted_with_value"
     },
     "Nothing firing." : {
@@ -1013,6 +1052,9 @@
       "extractionState" : "extracted_with_value"
     },
     "One per line, or separated by commas. %lld so far." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Only the person who raised this request can withdraw it." : {
       "extractionState" : "extracted_with_value"
     },
     "Open source" : {
@@ -1126,6 +1168,12 @@
     "Registrar" : {
       "extractionState" : "extracted_with_value"
     },
+    "Reject" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Reject this request?" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Relays" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1166,6 +1214,12 @@
       "extractionState" : "extracted_with_value"
     },
     "Reserved until" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Resolve" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Resolve this alert?" : {
       "extractionState" : "extracted_with_value"
     },
     "Resolver (optional)" : {
@@ -1420,6 +1474,12 @@
     "The registrar's nameservers don't match what's expected here." : {
       "extractionState" : "extracted_with_value"
     },
+    "The request comes off the approvers' queue. Nothing is changed." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The request is declined and nothing is changed. The requester is told." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The request was cancelled." : {
       "extractionState" : "extracted_with_value"
     },
@@ -1486,6 +1546,9 @@
     "This Device" : {
       "extractionState" : "extracted_with_value"
     },
+    "This MAC is randomised, so the same device will appear again under a different one." : {
+      "extractionState" : "extracted_with_value"
+    },
     "This account has no grants." : {
       "extractionState" : "extracted_with_value"
     },
@@ -1543,16 +1606,25 @@
     "This is a development build, so it can't be checked against the minimum supported release (%@)." : {
       "extractionState" : "extracted_with_value"
     },
+    "This is your own request. The platform needs a second person to approve it — you can withdraw it instead." : {
+      "extractionState" : "extracted_with_value"
+    },
     "This record is generated by an integration and managed by its reconciler. Changes here would be overwritten on the next sync, and the server refuses them." : {
       "extractionState" : "extracted_with_value"
     },
     "This record was published by IPAM for an address. Editing it here works, and the next IPAM sync will put it back — change the address instead." : {
       "extractionState" : "extracted_with_value"
     },
+    "This request is %@. There is nothing left to decide." : {
+      "extractionState" : "extracted_with_value"
+    },
     "This router has no VLANs." : {
       "extractionState" : "extracted_with_value"
     },
     "This row mirrors a live DHCP lease, so the server will refuse. Release the lease at the DHCP server instead." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This runs now, under your account:" : {
       "extractionState" : "extracted_with_value"
     },
     "This scope has no pools — it hands out nothing dynamically." : {
@@ -1729,6 +1801,18 @@
     "Will create" : {
       "extractionState" : "extracted_with_value"
     },
+    "Withdraw" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Withdraw This Request" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Withdraw this request?" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Withdrawing takes it off the approvers' queue. Nothing is changed." : {
+      "extractionState" : "extracted_with_value"
+    },
     "You don't have permission to make this change. Ask an administrator to review your role." : {
       "extractionState" : "extracted_with_value"
     },
@@ -1781,6 +1865,9 @@
       "extractionState" : "extracted_with_value"
     },
     "a while" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "acknowledged" : {
       "extractionState" : "extracted_with_value"
     },
     "auto" : {
