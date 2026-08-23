@@ -144,8 +144,11 @@ export TEST_RUNNER_SPATIUM_SHOT_DIR='/tmp/shots'
 xcodebuild test … -only-testing:SpatiumDDIUITests/ScreenshotUITests
 ```
 
-The simulator needs a biometric enrolment (**Features → Face ID → Enrolled**), or
-the token store refuses to save — which is the security rule working, not a bug.
+The simulator needs **either** a biometric enrolment (**Features → Face ID →
+Enrolled**) or a device passcode set. With neither, the token store refuses to
+save — which is the security rule working, not a bug. With only a passcode the
+app runs, and says so: `KeychainProtection` falls back to `.devicePasscode` and
+the sign-in screen names the weaker gate before the token is stored.
 
 > **Known flake:** the XCUITest runner app intermittently fails to launch
 > (`Simulator device failed to launch …xctrunner`). It is a runner-bootstrap

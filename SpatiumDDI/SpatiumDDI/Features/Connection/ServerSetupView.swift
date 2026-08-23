@@ -47,8 +47,12 @@ struct ServerSetupView: View {
                 } header: {
                     Text("Server Address")
                 } footer: {
+                    // Kept to two lines. The connected Status section — and the
+                    // Continue button on it — sits below this on a phone, and
+                    // a footer that pushes them off the bottom of the screen
+                    // makes the next step something you have to go looking for.
                     Text(
-                        "A host name or IP address. Add a port if your control plane doesn't use 443. The name is yours — \"Lab\", \"Prod EU\" — and is what the app calls this server from then on."
+                        "A host name or IP address, plus a port if your control plane isn't on 443. Name it if you like — \"Lab\", \"Prod EU\"."
                     )
                 }
 

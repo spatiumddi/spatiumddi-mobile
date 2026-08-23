@@ -80,9 +80,15 @@ extension XCTestCase {
         enterAddress(app, address)
         if app.staticTexts["Verify Certificate"].waitForExistence(timeout: 20) { return }
 
+        // Already trusted, so the connection succeeded instead. The controls
+        // for that state are in the Status section at the bottom of the form,
+        // which on a phone-sized window is below the fold — and a SwiftUI Form
+        // is a lazy collection view, so a row nobody has scrolled to is not in
+        // the accessibility tree at all, not merely off screen.
         let forget = app.buttons["Forget Trusted Certificate"]
+        if !forget.waitForExistence(timeout: 10) { app.swipeUp() }
         XCTAssertTrue(
-            forget.waitForExistence(timeout: 15),
+            forget.waitForExistence(timeout: 10),
             "Neither challenged nor connected — the server is unreachable"
         )
         forget.tap()

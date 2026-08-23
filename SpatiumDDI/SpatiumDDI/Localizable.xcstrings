@@ -91,6 +91,9 @@
     "A forward record is created in this zone, and a reverse record if one is configured." : {
       "extractionState" : "extracted_with_value"
     },
+    "A host name or IP address, plus a port if your control plane isn't on 443. Name it if you like — \"Lab\", \"Prod EU\"." : {
+      "extractionState" : "extracted_with_value"
+    },
     "A host name or IP address. Add a port if your control plane doesn't use 443." : {
       "extractionState" : "extracted_with_value"
     },

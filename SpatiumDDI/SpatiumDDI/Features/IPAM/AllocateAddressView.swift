@@ -55,8 +55,13 @@ struct AllocateAddressView: View {
                     LabeledContent("Subnet", value: subnet.network)
                     if !subnet.name.isEmpty { LabeledContent("Name", value: subnet.name) }
                     LabeledContent("Free") {
+                        // Routed through `formattedAddressCount` on both sides:
+                        // an IPv6 subnet's total comes back clamped to
+                        // `Int64.max`, and subtracting from it produces a free
+                        // count that is arithmetically fine and factually
+                        // nonsense.
                         Text(
-                            "\(subnet.totalIps - subnet.allocatedIps, format: .number) of \(subnet.totalIps.formattedAddressCount)"
+                            "\(freeAddressCount) of \(subnet.totalIps.formattedAddressCount)"
                         )
                     }
                 }
@@ -112,6 +117,13 @@ struct AllocateAddressView: View {
             .task { await model.load() }
         }
         .interactiveDismissDisabled(model.isSending)
+    }
+
+    /// Free addresses, or "very large" where the total was clamped.
+    private var freeAddressCount: String {
+        subnet.totalIps.isClampedCount
+            ? subnet.totalIps.formattedAddressCount
+            : (subnet.totalIps - subnet.allocatedIps).formatted()
     }
 
     // MARK: - Sections
