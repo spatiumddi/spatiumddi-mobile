@@ -62,7 +62,7 @@ struct ReachabilityToolView: View {
                 TextField(String(localized: tool.prompt), text: $host)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .keyboardType(.URL)
+                    .keyboardType(.numbersAndPunctuation)
                     .submitLabel(.go)
                     .onSubmit(start)
                 ToolRunButton(
@@ -147,7 +147,7 @@ struct PortTestToolView: View {
                 TextField("Host or IP", text: $host)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .keyboardType(.URL)
+                    .keyboardType(.numbersAndPunctuation)
                 TextField("Port", text: $port)
                     .keyboardType(.numberPad)
                 Picker("Protocol", selection: $isUDP) {

@@ -28,7 +28,7 @@ struct TLSCertToolView: View {
                 TextField("Host or IP", text: $host)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .keyboardType(.URL)
+                    .keyboardType(.numbersAndPunctuation)
                 TextField("Port", text: $port)
                     .keyboardType(.numberPad)
                 TextField("SNI name (optional)", text: $serverName)
@@ -176,10 +176,12 @@ struct WakeOnLANToolView: View {
                 TextField("MAC address", text: $mac)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .keyboardType(.numbersAndPunctuation)
                     .font(.body.monospaced())
                 TextField("Broadcast address (optional)", text: $broadcast)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .keyboardType(.numbersAndPunctuation)
                     .font(.body.monospaced())
                 ToolRunButton(
                     title: "Wake",

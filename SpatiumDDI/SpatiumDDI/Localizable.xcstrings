@@ -169,7 +169,16 @@
     "Actual" : {
       "extractionState" : "extracted_with_value"
     },
+    "Add" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Add Server" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Add What It Found to IPAM" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Add discovered hosts to IPAM?" : {
       "extractionState" : "extracted_with_value"
     },
     "Address" : {
@@ -188,6 +197,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Agent seen" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Aggressive" : {
       "extractionState" : "extracted_with_value"
     },
     "Alerts" : {
@@ -262,6 +274,9 @@
     "Blocks" : {
       "extractionState" : "extracted_with_value"
     },
+    "Both of the above. Slower." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Broadcast" : {
       "extractionState" : "extracted_with_value"
     },
@@ -281,6 +296,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Cancel" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Cancel Scan" : {
       "extractionState" : "extracted_with_value"
     },
     "Candidate" : {
@@ -421,6 +439,9 @@
     "Default TTL" : {
       "extractionState" : "extracted_with_value"
     },
+    "Default scripts" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Delete" : {
       "extractionState" : "extracted_with_value"
     },
@@ -532,6 +553,9 @@
     "Enter a port between 1 and 65535." : {
       "extractionState" : "extracted_with_value"
     },
+    "Enter an address or a CIDR range to scan." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Enter at least one MAC address." : {
       "extractionState" : "extracted_with_value"
     },
@@ -539,6 +563,12 @@
       "extractionState" : "extracted_with_value"
     },
     "Enter the MAC address of the machine to wake." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Every host this scan found answering is created in IPAM, or has its last-seen time updated if it is already there. Addresses outside a known subnet are skipped." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Everything at once. Slowest, and the most obvious in a log." : {
       "extractionState" : "extracted_with_value"
     },
     "Execution error" : {
@@ -611,6 +641,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Groups" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Guesses the operating system from how it replies." : {
       "extractionState" : "extracted_with_value"
     },
     "HA heartbeat" : {
@@ -856,6 +889,9 @@
     "Next available" : {
       "extractionState" : "extracted_with_value"
     },
+    "Nmap" : {
+      "extractionState" : "extracted_with_value"
+    },
     "No %@ alerts in this list." : {
       "extractionState" : "extracted_with_value"
     },
@@ -952,6 +988,9 @@
     "No new devices have been seen." : {
       "extractionState" : "extracted_with_value"
     },
+    "No open ports found." : {
+      "extractionState" : "extracted_with_value"
+    },
     "No providers are defined." : {
       "extractionState" : "extracted_with_value"
     },
@@ -962,6 +1001,9 @@
       "extractionState" : "extracted_with_value"
     },
     "No routers are registered." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "No scans have been run on this control plane." : {
       "extractionState" : "extracted_with_value"
     },
     "No sites are defined." : {
@@ -1015,6 +1057,9 @@
     "Not saved" : {
       "extractionState" : "extracted_with_value"
     },
+    "Not scanned" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Not sent" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1046,6 +1091,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Nothing logged for that MAC. It may not be reaching this server at all." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "OS fingerprint" : {
       "extractionState" : "extracted_with_value"
     },
     "OUI vendor lookup is switched off on this control plane." : {
@@ -1108,6 +1156,9 @@
     "Port Test" : {
       "extractionState" : "extracted_with_value"
     },
+    "Ports (optional, e.g. 22,80,443)" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Preference" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1147,10 +1198,16 @@
     "Protocol" : {
       "extractionState" : "extracted_with_value"
     },
+    "Quick" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Reachability" : {
       "extractionState" : "extracted_with_value"
     },
     "Reachable" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Recent scans" : {
       "extractionState" : "extracted_with_value"
     },
     "Record" : {
@@ -1252,6 +1309,12 @@
     "Running…" : {
       "extractionState" : "extracted_with_value"
     },
+    "Runs nmap's default scripts. Noisy at the far end." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Runs the preset as the control plane defines it." : {
+      "extractionState" : "extracted_with_value"
+    },
     "SHA-256 Fingerprint" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1271,6 +1334,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Saving…" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Scan" : {
       "extractionState" : "extracted_with_value"
     },
     "Scan Code" : {
@@ -1325,6 +1391,12 @@
       "extractionState" : "extracted_with_value"
     },
     "Service" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Service versions" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Services and OS" : {
       "extractionState" : "extracted_with_value"
     },
     "Set an SNI name to ask for a specific certificate on a shared address." : {
@@ -1384,6 +1456,9 @@
     "Specific" : {
       "extractionState" : "extracted_with_value"
     },
+    "Start Scan" : {
+      "extractionState" : "extracted_with_value"
+    },
     "State" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1400,6 +1475,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Subnet" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Subnet sweep" : {
       "extractionState" : "extracted_with_value"
     },
     "Subnets" : {
@@ -1421,6 +1499,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Target" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Target IP or CIDR" : {
       "extractionState" : "extracted_with_value"
     },
     "Test" : {
@@ -1463,6 +1544,9 @@
       "extractionState" : "extracted_with_value"
     },
     "The command timed out." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The common ports on one host. Fast." : {
       "extractionState" : "extracted_with_value"
     },
     "The only tool here that changes anything, and what it changes is whether a machine is switched on." : {
@@ -1660,6 +1744,9 @@
     "To" : {
       "extractionState" : "extracted_with_value"
     },
+    "Took" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Traceroute" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1688,6 +1775,12 @@
       "extractionState" : "extracted_with_value"
     },
     "UDP has no handshake, so an open port and a silent one can look the same." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "UDP is slow to scan and easy to miss. Expect minutes." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "UDP top 1000" : {
       "extractionState" : "extracted_with_value"
     },
     "Unexpected response from the server (HTTP %lld)." : {
@@ -1786,10 +1879,16 @@
     "Weight" : {
       "extractionState" : "extracted_with_value"
     },
+    "What is listening, and which version of it." : {
+      "extractionState" : "extracted_with_value"
+    },
     "What it would do" : {
       "extractionState" : "extracted_with_value"
     },
     "What the server recorded for this MAC — allocations, declines and NAKs. Kea servers only, and the log keeps 24 hours." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Which addresses in the range answer at all. No port detail." : {
       "extractionState" : "extracted_with_value"
     },
     "Why this needs approval" : {

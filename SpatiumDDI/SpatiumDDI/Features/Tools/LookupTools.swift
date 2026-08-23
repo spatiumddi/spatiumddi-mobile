@@ -41,6 +41,7 @@ struct DigToolView: View {
                 TextField("Resolver (optional)", text: $server)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .keyboardType(.numbersAndPunctuation)
                     .font(.body.monospaced())
                 ToolRunButton(
                     title: "Look Up",
@@ -281,6 +282,7 @@ struct MACVendorToolView: View {
                     .lineLimit(3...8)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .keyboardType(.numbersAndPunctuation)
                     .font(.body.monospaced())
                 ToolRunButton(
                     title: "Look Up",

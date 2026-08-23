@@ -285,6 +285,8 @@ struct SignedInView: View {
             TrashView(session: session)
         case .networkTools:
             NetworkToolsView(session: session)
+        case .nmap:
+            NmapView(session: session)
         case .search:
             SearchView(session: session)
         case .about:

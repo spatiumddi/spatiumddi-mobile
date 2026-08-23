@@ -165,8 +165,16 @@ filter:
     - /api/v1/tools/mac-vendor
     - /api/v1/tools/dns-propagation
     - /api/v1/tools/wol
-    # Deliberately absent: /tools/firewall-logs (a desk-sized log search),
-    # /nmap/* and /pcap/* (a phone is a bad place to run either).
+    # Nmap. Started here, then polled — the server runs it, so the phone is
+    # only the thing that asked. `stream` (SSE) is deliberately not generated:
+    # a scan that takes a minute does not need a live feed on a phone, and
+    # polling survives the app being backgrounded, which a stream does not.
+    - /api/v1/nmap/scans
+    - /api/v1/nmap/scans/{scan_id}
+    - /api/v1/nmap/scans/{scan_id}/stamp-discovered
+
+    # Deliberately absent: /tools/firewall-logs (a desk-sized log search) and
+    # /pcap/* (a phone is a bad place to read a packet capture).
 
     # The DHCP and DNS protocol logs — the conversation itself, filterable by
     # MAC or client IP. These are POST because the filter is a body, not
