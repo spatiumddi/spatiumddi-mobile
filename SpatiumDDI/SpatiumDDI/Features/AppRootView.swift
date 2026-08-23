@@ -283,6 +283,8 @@ struct SignedInView: View {
             AuditLogView(session: session)
         case .trash:
             TrashView(session: session)
+        case .networkTools:
+            NetworkToolsView(session: session)
         case .search:
             SearchView(session: session)
         case .about:

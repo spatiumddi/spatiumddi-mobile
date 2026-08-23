@@ -53,6 +53,12 @@ Every screen here answers a question you'd otherwise need a laptop for:
 - Is the DHCP pool that page-out was about actually exhausted?
 - What is `10.40.12.68`, and who has had it before?
 - Is anything on fire right now?
+- Can the *server* reach that host, resolve that name, open that port?
+
+That last one is why the diagnostics run on the control plane rather than on
+the phone. Your phone is on Wi-Fi, or a VPN, or a mobile network, and none of
+those is where the service lives — so a ping from your pocket answers a
+question nobody asked.
 
 It talks to a SpatiumDDI control plane over its public REST API and contains no
 server-side code. **This repo is a client of a contract it does not own** — the
@@ -68,6 +74,7 @@ platform, the API and the roadmap all live in
 | **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it. **Allocate** an address (next-available or specific, named and published to DNS in the same request), **edit** what it says about itself, **delete** it behind a typed confirmation |
 | **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring. **Add, edit and delete records** — A, AAAA, CNAME, TXT, MX, SRV, NS, PTR, CAA — each stated in zone-file form before it is sent |
 | **DHCP** | Server health and HA state, a live ACK/NAK traffic chart, leases with fingerprinted device class, and scopes with their pools and reservations |
+| **Network Tools** | Ping, traceroute, MTR, port test, dig, propagation check, TLS certificate, WHOIS, MAC vendor and Wake-on-LAN — all run **from the control plane**, which is the vantage point that makes them worth having |
 | **Search** | Global search across 16 resource types, grouped by kind, ranked server-side |
 | **Connect** | HTTPS-only, with an explicit certificate-trust flow for the private CAs self-hosted installs actually use |
 | **Sign in** | Per-device `sddi_` API token, by paste or by scanning the enrolment QR code, stored in the Keychain behind Face ID / Touch ID — or the device passcode, on hardware that has no biometrics, with the trade-off stated rather than silently taken |
@@ -189,9 +196,13 @@ actually read while the device is locked — is
 ### Beyond the phases — parity with the web console
 
 A gap analysis against the platform's web GUI, surface by surface, is filed as
-labelled issues: network tools and Wake-on-LAN
-([#14](https://github.com/spatiumddi/spatiumddi-mobile/issues/14)), chart and
-Top-N report parity
+labelled issues. **Landed:** network tools and Wake-on-LAN
+([#14](https://github.com/spatiumddi/spatiumddi-mobile/issues/14)) — ten
+diagnostics run from the control plane, of which only Wake-on-LAN changes
+anything, and it reports that the packet was *sent* rather than implying a
+machine woke up that nobody checked on.
+
+Still open: chart and Top-N report parity
 ([#15](https://github.com/spatiumddi/spatiumddi-mobile/issues/15)),
 "where is this MAC" from switch ARP/FDB/LLDP polling
 ([#16](https://github.com/spatiumddi/spatiumddi-mobile/issues/16)), the

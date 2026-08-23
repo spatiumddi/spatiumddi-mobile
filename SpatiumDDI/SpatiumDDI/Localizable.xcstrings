@@ -28,6 +28,9 @@
     "%@ is in a change window. Try again once it's finished." : {
       "extractionState" : "extracted_with_value"
     },
+    "%@ isn't installed on this control plane." : {
+      "extractionState" : "extracted_with_value"
+    },
     "%@ isn't set up on this device. Setting it up is strongly recommended — it's harder to observe than a typed passcode, and it drops the stored token automatically if the enrolment ever changes." : {
       "extractionState" : "extracted_with_value"
     },
@@ -73,6 +76,9 @@
     "%lld %@" : {
       "extractionState" : "extracted_with_value"
     },
+    "%lld days" : {
+      "extractionState" : "extracted_with_value"
+    },
     "%lldd left" : {
       "extractionState" : "extracted_with_value"
     },
@@ -104,6 +110,12 @@
       "extractionState" : "extracted_with_value"
     },
     "A host name or IP address. Add a port if your control plane doesn't use 443. The name is yours — \"Lab\", \"Prod EU\" — and is what the app calls this server from then on." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "A magic packet goes to %@, %@." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "A magic packet only reaches the broadcast domain it is sent into, so a machine on another subnet needs its broadcast address here." : {
       "extractionState" : "extracted_with_value"
     },
     "A passcode is weaker than biometrics here, and unlike a biometric enrolment it doesn't invalidate the stored token when it changes. Sign in again after setting up biometrics to upgrade this." : {
@@ -235,6 +247,12 @@
     "Blocks" : {
       "extractionState" : "extracted_with_value"
     },
+    "Broadcast" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Broadcast address (optional)" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Built against" : {
       "extractionState" : "extracted_with_value"
     },
@@ -272,6 +290,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Change Server" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Check" : {
       "extractionState" : "extracted_with_value"
     },
     "Check for a newer candidate" : {
@@ -406,7 +427,13 @@
     "Device passcode" : {
       "extractionState" : "extracted_with_value"
     },
+    "Dig" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Domain" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Domain, IP or ASN" : {
       "extractionState" : "extracted_with_value"
     },
     "Domains" : {
@@ -445,6 +472,54 @@
     "Endpoint" : {
       "extractionState" : "extracted_with_value"
     },
+    "Enter a MAC address to send a magic packet." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a domain, an IP address or an AS number first." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a host and port to test from the control plane." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a host and run it. The control plane pings, not this phone." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a host for a per-hop loss and latency report. This one takes a while." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a host name or an IP address first." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a host to see the certificate it presents." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a host to see the path the control plane takes to reach it." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a name to ask several public resolvers at once." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a name to ask the control plane's resolver." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a name to check first." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a name to look up first." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter a port between 1 and 65535." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter at least one MAC address." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter something to look up in WHOIS." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Enter the MAC address of the machine to wake." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Execution error" : {
       "extractionState" : "extracted_with_value"
     },
@@ -457,6 +532,9 @@
     "Expires" : {
       "extractionState" : "extracted_with_value"
     },
+    "Expires in" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Expires today" : {
       "extractionState" : "extracted_with_value"
     },
@@ -464,6 +542,9 @@
       "extractionState" : "extracted_with_value"
     },
     "FQDN" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Fetch Certificate" : {
       "extractionState" : "extracted_with_value"
     },
     "Fetch Log" : {
@@ -547,6 +628,18 @@
     "Host name" : {
       "extractionState" : "extracted_with_value"
     },
+    "Host or IP" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Host or IP to measure" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Host or IP to ping" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Host or IP to trace" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Hostname" : {
       "extractionState" : "extracted_with_value"
     },
@@ -619,6 +712,9 @@
     "Leave the host name empty to take the address without publishing a DNS record. \"Reserved\" holds an address without saying a machine is on it yet." : {
       "extractionState" : "extracted_with_value"
     },
+    "Leave the resolver empty to ask whatever the control plane itself uses." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Licence" : {
       "extractionState" : "extracted_with_value"
     },
@@ -637,7 +733,19 @@
     "MAC %@" : {
       "extractionState" : "extracted_with_value"
     },
+    "MAC Vendor" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "MAC address" : {
+      "extractionState" : "extracted_with_value"
+    },
     "MAC address (optional)" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "MAC addresses" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "MTR" : {
       "extractionState" : "extracted_with_value"
     },
     "Maintenance in progress" : {
@@ -685,13 +793,28 @@
     "Name (optional)" : {
       "extractionState" : "extracted_with_value"
     },
+    "Name resolution" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Name to check" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Name to look up" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Named %@, in this subnet's configured zone" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Names" : {
       "extractionState" : "extracted_with_value"
     },
     "Nameservers" : {
       "extractionState" : "extracted_with_value"
     },
     "Network" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Network Tools" : {
       "extractionState" : "extracted_with_value"
     },
     "Never" : {
@@ -754,6 +877,9 @@
     "No alerts recorded." : {
       "extractionState" : "extracted_with_value"
     },
+    "No answer." : {
+      "extractionState" : "extracted_with_value"
+    },
     "No certificate matches this filter." : {
       "extractionState" : "extracted_with_value"
     },
@@ -805,6 +931,9 @@
     "No record matches this filter." : {
       "extractionState" : "extracted_with_value"
     },
+    "No resolver answered." : {
+      "extractionState" : "extracted_with_value"
+    },
     "No routers are registered." : {
       "extractionState" : "extracted_with_value"
     },
@@ -850,6 +979,12 @@
     "Not saved" : {
       "extractionState" : "extracted_with_value"
     },
+    "Not sent" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Not usable" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Note" : {
       "extractionState" : "extracted_with_value"
     },
@@ -874,6 +1009,12 @@
     "Nothing logged for that MAC. It may not be reaching this server at all." : {
       "extractionState" : "extracted_with_value"
     },
+    "OUI vendor lookup is switched off on this control plane." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "One per line, or separated by commas. %lld so far." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Open source" : {
       "extractionState" : "extracted_with_value"
     },
@@ -895,10 +1036,19 @@
     "Ownership" : {
       "extractionState" : "extracted_with_value"
     },
+    "Packet" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Paste MAC addresses to name their vendors." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Permissions" : {
       "extractionState" : "extracted_with_value"
     },
     "Phones rotate their MAC by design, so those sightings are usually noise." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Ping" : {
       "extractionState" : "extracted_with_value"
     },
     "Platform" : {
@@ -911,6 +1061,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Port" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Port Test" : {
       "extractionState" : "extracted_with_value"
     },
     "Preference" : {
@@ -940,7 +1093,19 @@
     "Project" : {
       "extractionState" : "extracted_with_value"
     },
+    "Propagation" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Propagation Check" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Protected by" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Protocol" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Reachability" : {
       "extractionState" : "extracted_with_value"
     },
     "Reachable" : {
@@ -1003,7 +1168,13 @@
     "Reserved until" : {
       "extractionState" : "extracted_with_value"
     },
+    "Resolver (optional)" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Resource" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Result" : {
       "extractionState" : "extracted_with_value"
     },
     "Role" : {
@@ -1012,10 +1183,25 @@
     "Roles" : {
       "extractionState" : "extracted_with_value"
     },
+    "Round trip" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Router advertisements" : {
       "extractionState" : "extracted_with_value"
     },
+    "Run" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Run from the control plane, not from this phone — so the answer is the one that matters." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Running…" : {
+      "extractionState" : "extracted_with_value"
+    },
     "SHA-256 Fingerprint" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "SNI name (optional)" : {
       "extractionState" : "extracted_with_value"
     },
     "Save" : {
@@ -1063,6 +1249,12 @@
     "Self-hosted control planes usually present a certificate from a private CA. Approve it only if the fingerprint below matches the one your server reports." : {
       "extractionState" : "extracted_with_value"
     },
+    "Self-signed" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Sent" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Serial" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1079,6 +1271,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Service" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Set an SNI name to ask for a specific certificate on a shared address." : {
       "extractionState" : "extracted_with_value"
     },
     "Show token" : {
@@ -1162,6 +1357,9 @@
     "Switch Server" : {
       "extractionState" : "extracted_with_value"
     },
+    "TLS Certificate" : {
+      "extractionState" : "extracted_with_value"
+    },
     "TTL" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1169,6 +1367,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Target" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Test" : {
       "extractionState" : "extracted_with_value"
     },
     "That code carries a different certificate fingerprint than the one you approved for %@. Do not continue until you know why." : {
@@ -1207,6 +1408,15 @@
     "The address itself can't be changed here — the server doesn't move a row to a different IP. Delete it and allocate the one you want." : {
       "extractionState" : "extracted_with_value"
     },
+    "The command timed out." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The only tool here that changes anything, and what it changes is whether a machine is switched on." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The packet left the control plane. Whether the machine wakes depends on it, and nothing here can tell you." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The registrar's nameservers don't match what's expected here." : {
       "extractionState" : "extracted_with_value"
     },
@@ -1234,6 +1444,12 @@
     "The server is in a change window and nothing was changed. Try again once it's finished." : {
       "extractionState" : "extracted_with_value"
     },
+    "The server is in a change window. Try again once it's finished." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The server is rate-limiting requests. Wait a moment and try again." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The server matches a MAC exactly, so enter all twelve digits — separators don't matter. Leave it empty to see everything. The log keeps 24 hours." : {
       "extractionState" : "extracted_with_value"
     },
@@ -1243,7 +1459,13 @@
     "The server raised a %@ warning." : {
       "extractionState" : "extracted_with_value"
     },
+    "The server rejected that request as invalid." : {
+      "extractionState" : "extracted_with_value"
+    },
     "The server rejected that token. Check it hasn't been revoked or expired." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "The server reported an error (HTTP %lld)." : {
       "extractionState" : "extracted_with_value"
     },
     "The server truncated this log — narrow the filter to see further back." : {
@@ -1286,6 +1508,9 @@
       "extractionState" : "extracted_with_value"
     },
     "This app links the following, each under its own licence." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "This asks public resolvers, so the name you enter leaves your network." : {
       "extractionState" : "extracted_with_value"
     },
     "This block has no subnets." : {
@@ -1360,6 +1585,12 @@
     "Time" : {
       "extractionState" : "extracted_with_value"
     },
+    "To" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Traceroute" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Traffic" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1384,7 +1615,16 @@
     "Typing it is the whole confirmation — there is no second prompt." : {
       "extractionState" : "extracted_with_value"
     },
+    "UDP has no handshake, so an open port and a silent one can look the same." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Unexpected response from the server (HTTP %lld)." : {
+      "extractionState" : "extracted_with_value"
+    },
     "Unhealthy" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Unknown" : {
       "extractionState" : "extracted_with_value"
     },
     "Unlock" : {
@@ -1426,10 +1666,16 @@
     "Valid" : {
       "extractionState" : "extracted_with_value"
     },
+    "Valid, but not for this host name" : {
+      "extractionState" : "extracted_with_value"
+    },
     "Value" : {
       "extractionState" : "extracted_with_value"
     },
     "Vendor" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Verdict" : {
       "extractionState" : "extracted_with_value"
     },
     "Verify Certificate" : {
@@ -1438,10 +1684,28 @@
     "Version" : {
       "extractionState" : "extracted_with_value"
     },
+    "VoIP" : {
+      "extractionState" : "extracted_with_value"
+    },
     "VoIP phone" : {
       "extractionState" : "extracted_with_value"
     },
+    "WHOIS" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "WHOIS queries go to a public registry, so this leaves your network." : {
+      "extractionState" : "extracted_with_value"
+    },
     "WHOIS state" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Wake" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Wake on LAN" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Wake this machine?" : {
       "extractionState" : "extracted_with_value"
     },
     "Warning" : {
@@ -1466,6 +1730,9 @@
       "extractionState" : "extracted_with_value"
     },
     "You don't have permission to make this change. Ask an administrator to review your role." : {
+      "extractionState" : "extracted_with_value"
+    },
+    "You don't have permission to read this. Ask an administrator to review your role." : {
       "extractionState" : "extracted_with_value"
     },
     "You'll be shown exactly what will be created before anything is sent." : {
@@ -1546,6 +1813,9 @@
     "empty" : {
       "extractionState" : "extracted_with_value"
     },
+    "exit %lld" : {
+      "extractionState" : "extracted_with_value"
+    },
     "expires %@" : {
       "extractionState" : "extracted_with_value"
     },
@@ -1577,6 +1847,9 @@
       "extractionState" : "extracted_with_value"
     },
     "maintenance" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "on the control plane's own broadcast domain" : {
       "extractionState" : "extracted_with_value"
     },
     "port %lld" : {

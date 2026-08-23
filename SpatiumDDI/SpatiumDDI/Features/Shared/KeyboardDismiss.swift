@@ -22,6 +22,19 @@ import UIKit
 /// It matters most on the **numeric** fields. `.numberPad` has no Return key at
 /// all, so TTL, priority, weight and port had no dismissal short of tapping
 /// some other row and hoping it wasn't a button.
+/// Puts the keyboard away, whatever is holding it.
+///
+/// The SwiftUI-native alternative is a `@FocusState` bound to every field on
+/// every screen, which means the one screen where somebody forgets to bind a
+/// field is the screen where this silently does nothing. A function that
+/// cannot be wired up wrongly is worth the one UIKit call.
+@MainActor
+func dismissKeyboard() {
+    UIApplication.shared.sendAction(
+        #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+    )
+}
+
 private struct DismissableKeyboard: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -39,21 +52,7 @@ private struct DismissableKeyboard: ViewModifier {
                     // conventional "put the keyboard away" symbol, so it needs
                     // no reading.
                     Button {
-                        // Resigns whichever field is first responder without
-                        // this modifier having to know what the fields are.
-                        //
-                        // The SwiftUI-native alternative is a `@FocusState`
-                        // bound to every field on every screen, which means the
-                        // one screen where somebody forgets to bind a field is
-                        // the screen where the button silently does nothing.
-                        // A modifier that cannot be wired up wrongly is worth
-                        // the one UIKit call.
-                        UIApplication.shared.sendAction(
-                            #selector(UIResponder.resignFirstResponder),
-                            to: nil,
-                            from: nil,
-                            for: nil
-                        )
+                        dismissKeyboard()
                     } label: {
                         Image(systemName: "keyboard.chevron.compact.down")
                     }

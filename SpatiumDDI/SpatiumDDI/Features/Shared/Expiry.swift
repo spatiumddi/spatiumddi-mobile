@@ -24,7 +24,15 @@ nonisolated enum Expiry: Sendable {
             self = .unknown
             return
         }
-        let days = Calendar.current.dateComponents([.day], from: now, to: date).day ?? 0
+        self.init(daysRemaining: Calendar.current.dateComponents([.day], from: now, to: date).day ?? 0)
+    }
+
+    /// From a count the server already worked out.
+    ///
+    /// The TLS-certificate tool reports `days_remaining` rather than a date,
+    /// and it would be a poor screen that called 20 days amber in one place
+    /// and green in another — so the thresholds live here once.
+    init(daysRemaining days: Int) {
         switch days {
         case ..<0: self = .expired
         case 0..<8: self = .critical(days: days)
