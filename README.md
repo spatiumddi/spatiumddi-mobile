@@ -11,8 +11,27 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"/></a>
   <img src="https://img.shields.io/badge/platform-iOS%2018%2B%20%C2%B7%20iPadOS-lightgrey" alt="Platform"/>
   <img src="https://img.shields.io/badge/Swift-6.0-orange" alt="Swift 6"/>
-  <img src="https://img.shields.io/badge/status-phase%201-blue" alt="Status"/>
+  <img src="https://img.shields.io/badge/status-phase%202-blue" alt="Status"/>
 </p>
+
+---
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png">
+    <img src="docs/screenshots/overview.png" width="260" alt="Overview screen: per-component platform health, server version, and unresolved alert counts by severity">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/ipam-subnet-dark.png">
+    <img src="docs/screenshots/ipam-subnet.png" width="260" alt="A subnet's address list with utilisation, breadcrumbs back through block and space, and the allocate button">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dhcp-servers-dark.png">
+    <img src="docs/screenshots/dhcp-servers.png" width="260" alt="DHCP servers with health and driver badges — one honestly red and unreachable — above the scope groups with their failover modes">
+  </picture>
+</p>
+<p align="center"><sub>Captured from the app running against a live control plane — by
+<code>ScreenshotUITests</code>, not a mockup. They follow your colour scheme.</sub></p>
 
 ---
 
@@ -54,13 +73,40 @@ platform, the API and the roadmap all live in
 | **Sign in** | Per-device `sddi_` API token, by paste or by scanning the enrolment QR code, stored in the Keychain behind Face ID / Touch ID — or the device passcode, on hardware that has no biometrics, with the trade-off stated rather than silently taken |
 | **Servers** | As many control planes as you run, each with its own name, token and pinned certificate. Switching tears the session down; nothing is shared or aggregated between them |
 
-Navigation is a grouped sidebar — **Monitor / Estate / Tools** — which is a real
-sidebar on iPad and collapses to a pushed list on iPhone.
+Navigation is a grouped sidebar — **Monitor / Estate / Network /
+Administration / Tools** — which is a real sidebar on iPad and collapses to a
+pushed list on iPhone. Sections whose optional platform module is switched off
+are not shown at all.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dns-records-dark.png">
+    <img src="docs/screenshots/dns-records.png" width="260" alt="A zone's records, filterable by type or substring, with SOA facts and DNSSEC state above">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/ipam-allocate-dark.png">
+    <img src="docs/screenshots/ipam-allocate.png" width="260" alt="The allocate sheet: next-available or specific address, hostname published to DNS in the same request, Save in the navigation bar">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/delete-gate-dark.png">
+    <img src="docs/screenshots/delete-gate.png" width="260" alt="The typed delete confirmation: the sheet states what will actually happen and the operator types the address to proceed">
+  </picture>
+</p>
+<p align="center"><sub>The write story: browse it, take an address, and a delete that makes
+you type what you are deleting — because the retraction reaches every server before the
+sheet has dismissed.</sub></p>
 
 ## Roadmap
 
-Phasing follows [spatiumddi#884](https://github.com/spatiumddi/spatiumddi/issues/884).
-Feature work is filed **upstream**, not on this tracker.
+Phasing follows [spatiumddi#884](https://github.com/spatiumddi/spatiumddi/issues/884),
+and the roadmap itself lives on
+[this tracker](https://github.com/spatiumddi/spatiumddi-mobile/issues?q=is%3Aissue+is%3Aopen+label%3Aroadmap),
+filterable by label: `phase-2` / `phase-3` / `phase-4` for the phases,
+**`parity`** for what the web console has that the app does not yet,
+**`mobile-native`** for what only exists because this is a phone, and
+**`blocked-upstream`** for what needs the platform to move first. Work the
+*platform* has to do is still filed upstream — the split is by who does the
+work, and everything the app does belongs here.
 
 ### Phase 1 — read-mostly ✅
 
@@ -77,6 +123,16 @@ there is; the rest of the platform's surface stays desktop work.
 **Landed:** allocating an address and creating a DNS record
 ([#7](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)); editing and
 deleting both ([#8](https://github.com/spatiumddi/spatiumddi-mobile/issues/8)).
+
+**Next**, one issue each: resolve an alert
+([#9](https://github.com/spatiumddi/spatiumddi-mobile/issues/9)), act on change
+requests ([#10](https://github.com/spatiumddi/spatiumddi-mobile/issues/10)),
+toggle maintenance mode
+([#11](https://github.com/spatiumddi/spatiumddi-mobile/issues/11)), acknowledge
+new-device sightings
+([#12](https://github.com/spatiumddi/spatiumddi-mobile/issues/12)), and revoke
+a lost device's token
+([#13](https://github.com/spatiumddi/spatiumddi-mobile/issues/13)).
 
 Every write is confirmed, and the confirmation names the actual thing — the
 address and the subnet, or the record in zone-file form — rather than asking
@@ -125,14 +181,42 @@ supplied credentials, a project-run relay, or both — are laid out in the issue
 Whichever wins has to stay default-off and send an opaque payload, because alert
 text names internal hostnames and subnets, and this app does not leak those.
 
-### Also queued
+The app half — registration, the opaque-payload contract, deep links through
+the unlock flow, and a notification service extension designed for what it can
+actually read while the device is locked — is
+[#21](https://github.com/spatiumddi/spatiumddi-mobile/issues/21) here.
 
-- **Fleet-wide lease queries** — "does this MAC have a lease *anywhere*" currently costs one call per DHCP server plus a client-side merge. Filed upstream as part of [spatiumddi#917](https://github.com/spatiumddi/spatiumddi/issues/917) §A2.
+### Beyond the phases — parity with the web console
+
+A gap analysis against the platform's web GUI, surface by surface, is filed as
+labelled issues: network tools and Wake-on-LAN
+([#14](https://github.com/spatiumddi/spatiumddi-mobile/issues/14)), chart and
+Top-N report parity
+([#15](https://github.com/spatiumddi/spatiumddi-mobile/issues/15)),
+"where is this MAC" from switch ARP/FDB/LLDP polling
+([#16](https://github.com/spatiumddi/spatiumddi-mobile/issues/16)), the
+remaining module surfaces ranked by mobile fit
+([#17](https://github.com/spatiumddi/spatiumddi-mobile/issues/17)), the next
+ring of estate writes — DHCP reservations first
+([#18](https://github.com/spatiumddi/spatiumddi-mobile/issues/18)) — and the
+Operator Copilot ([#19](https://github.com/spatiumddi/spatiumddi-mobile/issues/19)).
+
+Upstream [spatiumddi#917](https://github.com/spatiumddi/spatiumddi/issues/917)
+has since landed the fleet-wide lease lookup, hygiene report and vendor rollup
+the app asked for; adopting them at the next re-pin is
+[#20](https://github.com/spatiumddi/spatiumddi-mobile/issues/20).
+
+The `mobile-native` set is the part with no web equivalent: home-screen widgets
+([#22](https://github.com/spatiumddi/spatiumddi-mobile/issues/22)), App Intents
+([#23](https://github.com/spatiumddi/spatiumddi-mobile/issues/23)), and iPad
+polish ([#24](https://github.com/spatiumddi/spatiumddi-mobile/issues/24)).
 
 ### Phase 4 — Android
 
 Kotlin native vs. KMP vs. React Native is a Phase 4 call, decided then, on
-evidence. Deliberately not committed to now.
+evidence — the criteria and the spikes that will decide it are
+[#27](https://github.com/spatiumddi/spatiumddi-mobile/issues/27). Deliberately
+not committed to now.
 
 ## Requirements
 

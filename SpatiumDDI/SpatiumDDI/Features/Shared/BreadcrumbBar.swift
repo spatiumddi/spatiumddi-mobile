@@ -24,30 +24,42 @@ import SwiftUI
 struct BreadcrumbBar: View {
     let trail: [String]
 
+    private var crumbs: some View {
+        HStack(spacing: 5) {
+            ForEach(Array(trail.enumerated()), id: \.offset) { index, crumb in
+                if index > 0 {
+                    Image(systemName: "chevron.compact.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                // The control plane's own names for these rows, shown
+                // as sent — never translated, never Markdown-parsed.
+                Text(verbatim: crumb)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+    }
+
     var body: some View {
         if !trail.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 5) {
-                    ForEach(Array(trail.enumerated()), id: \.offset) { index, crumb in
-                        if index > 0 {
-                            Image(systemName: "chevron.compact.right")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                        // The control plane's own names for these rows, shown
-                        // as sent — never translated, never Markdown-parsed.
-                        Text(verbatim: crumb)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
+            // A trail that fits is laid out plainly; only genuine overflow
+            // gets a ScrollView. The previous shape — always a ScrollView,
+            // with `.defaultScrollAnchor(.trailing)` to right-align undersized
+            // content — rendered the strip with its text scrolled clean out of
+            // the viewport on the iOS 27 beta: the bar took its space and drew
+            // its divider, and the crumbs themselves were never visible. Keep
+            // the anchor only where there is actually something to anchor.
+            ViewThatFits(in: .horizontal) {
+                crumbs.frame(maxWidth: .infinity, alignment: .leading)
+                ScrollView(.horizontal, showsIndicators: false) { crumbs }
+                    // Anchored to the end, so the crumb you can see is the
+                    // nearest ancestor — the one that actually locates you.
+                    .defaultScrollAnchor(.trailing)
             }
-            // Anchored to the end, so on a narrow screen the crumb you can see
-            // is the nearest ancestor — the one that actually locates you.
-            .defaultScrollAnchor(.trailing)
             .background(.bar)
             .overlay(alignment: .bottom) { Divider() }
             .accessibilityElement(children: .ignore)

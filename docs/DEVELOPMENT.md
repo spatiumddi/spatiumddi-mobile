@@ -155,6 +155,46 @@ the sign-in screen names the weaker gate before the token is stored.
 > problem, not a test failure — retry, or run it from Xcode. This is also why UI
 > tests run only on `main` in CI and not on pull requests.
 
+The walk drills IPAM to an address and DNS to a record list. By default it
+descends into the **first populated row** at each level — which on a demo
+estate is as likely to be an empty multicast block as the office subnet the
+screenshots are for. Tell it where to go instead, by row text:
+
+```bash
+export TEST_RUNNER_SPATIUM_IPAM_SPACE='Corporate'
+export TEST_RUNNER_SPATIUM_IPAM_BLOCK='10.0.0.0/8'
+export TEST_RUNNER_SPATIUM_IPAM_SUBNET='10.1.0.0/24'
+export TEST_RUNNER_SPATIUM_DNS_GROUP='default'
+export TEST_RUNNER_SPATIUM_DNS_ZONE='windows.lab.local'
+export TEST_RUNNER_SPATIUM_DHCP_SERVER='dhcp-kea'
+```
+
+Matching is case-insensitive substring against the visible row, so a network,
+a name, or a distinctive fragment of either all work. The write sheets the walk
+opens on the way — allocate, new record, and the typed delete gate — are always
+**cancelled**; the test must never mutate the estate it is pointed at.
+
+The captures land in the result bundle as attachments, and as PNGs in
+`SPATIUM_SHOT_DIR`. They are the README and App Store set: re-capture when a
+shipped screen changes materially, not on every release. For the README's
+dark-mode variants, run it again with a different shot directory and
+
+```bash
+export TEST_RUNNER_SPATIUM_APPEARANCE=dark
+```
+
+which the harness passes into the app's capture hook
+(`SPATIUM_FORCE_APPEARANCE`, honoured in `SpatiumDDIApp` and inert on every
+real launch). Flipping the simulator with `simctl ui … appearance dark` looks
+equivalent and is not: it doesn't reliably reach a test-managed launch, and
+the failure mode is a "dark" run of perfectly light captures.
+
+> **Before publishing any capture, look at it.** The Connect, Sign In, Menu
+> and Server screens show the control plane's **real host name**, and the walk
+> was pointed at a real lab. The published README set deliberately uses only
+> screens that never display the address; anything else needs the host blurred
+> or the run repointed at a stub before it goes anywhere public.
+
 ---
 
 ## Strings and localisation
