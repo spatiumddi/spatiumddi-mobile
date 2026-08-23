@@ -174,6 +174,10 @@ struct SignedInView: View {
             AlertsView(session: session)
         case .changeRequests:
             ChangeRequestsView(session: session)
+        case .clientLookup:
+            ClientLookupView(session: session)
+        case .dhcpLog:
+            DHCPActivityView(session: session)
         case .newDevices:
             NewDevicesView(session: session)
         case .ipam:

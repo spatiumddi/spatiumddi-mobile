@@ -115,3 +115,24 @@ filter:
     # Which optional modules this control plane has switched on. The rule
     # against feature-probing needs somewhere to ask instead, and this is it.
     - /api/v1/admin/feature-modules
+
+    # ── Troubleshooting a specific client ─────────────────────────────────
+    # lease-history filters by mac / ip / hostname, which is the whole point:
+    # a technician stood next to a machine that will not get an address needs
+    # to know whether it ever asked, what it got, and when that lapsed.
+    - /api/v1/dhcp/servers/{server_id}/lease-history
+    - /api/v1/dhcp/servers/{server_id}/recent-events
+    - /api/v1/dns/servers/{server_id}/recent-events
+    - /api/v1/logs/sources
+
+    # The DHCP and DNS protocol logs — the conversation itself, filterable by
+    # MAC or client IP. These are POST because the filter is a body, not
+    # because they change anything: they read a log and return rows. The
+    # read-only rule this app holds to is about not mutating a production
+    # network, not about HTTP verbs, and these are the two most useful
+    # troubleshooting surfaces the platform has.
+    #
+    # `recent-events` is NOT this — that returns audit rows about the server,
+    # not packets from clients.
+    - /api/v1/logs/dhcp-activity
+    - /api/v1/logs/dns-queries
