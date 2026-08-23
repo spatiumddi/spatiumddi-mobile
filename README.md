@@ -64,7 +64,9 @@ platform, the API and the roadmap all live in
 | Surface | What you get |
 |---|---|
 | **Overview** | Platform health per component, maintenance/demo banners, server version and update check, unresolved alerts by severity, estate counts, and a size-weighted utilisation figure with the busiest subnets |
-| **Alerts** | Every alert event, most-severe first, filterable by severity and unresolved-only |
+| **Alerts** | Every alert event, most-severe first, filterable by severity and unresolved-only. **Resolve** one from the list — swipe, read what it says, confirm |
+| **Approvals** | Change requests with the change they'd make, who asked, and why the platform decided it needed approving. **Approve, reject or withdraw** — a decision you can make from a train, which is the point |
+| **New devices** | First-seen MACs with vendor, subnet and randomisation, and **acknowledge** for the ones that turn out to be fine |
 | **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it. **Allocate** an address (next-available or specific, named and published to DNS in the same request), **edit** what it says about itself, **delete** it behind a typed confirmation |
 | **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring. **Add, edit and delete records** — A, AAAA, CNAME, TXT, MX, SRV, NS, PTR, CAA — each stated in zone-file form before it is sent |
 | **DHCP** | Server health and HA state, a live ACK/NAK traffic chart, leases with fingerprinted device class, and scopes with their pools and reservations |
@@ -122,16 +124,17 @@ there is; the rest of the platform's surface stays desktop work.
 
 **Landed:** allocating an address and creating a DNS record
 ([#7](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)); editing and
-deleting both ([#8](https://github.com/spatiumddi/spatiumddi-mobile/issues/8)).
+deleting both ([#8](https://github.com/spatiumddi/spatiumddi-mobile/issues/8));
+resolving an alert
+([#9](https://github.com/spatiumddi/spatiumddi-mobile/issues/9)), deciding a
+change request
+([#10](https://github.com/spatiumddi/spatiumddi-mobile/issues/10)) and
+acknowledging a new-device sighting
+([#12](https://github.com/spatiumddi/spatiumddi-mobile/issues/12)).
 
-**Next**, one issue each: resolve an alert
-([#9](https://github.com/spatiumddi/spatiumddi-mobile/issues/9)), act on change
-requests ([#10](https://github.com/spatiumddi/spatiumddi-mobile/issues/10)),
-toggle maintenance mode
-([#11](https://github.com/spatiumddi/spatiumddi-mobile/issues/11)), acknowledge
-new-device sightings
-([#12](https://github.com/spatiumddi/spatiumddi-mobile/issues/12)), and revoke
-a lost device's token
+**Next:** toggle maintenance mode
+([#11](https://github.com/spatiumddi/spatiumddi-mobile/issues/11)) and revoke a
+lost device's token
 ([#13](https://github.com/spatiumddi/spatiumddi-mobile/issues/13)).
 
 Every write is confirmed, and the confirmation names the actual thing — the
@@ -139,7 +142,14 @@ address and the subnet, or the record in zone-file form — rather than asking
 "are you sure". No destructive action lands on a single tap: this is an app for
 changing production DNS and DHCP from a phone, one-handed, possibly on a train.
 
-Two behaviours are worth knowing about, because they are the ones that bite:
+Three behaviours are worth knowing about, because they are the ones that bite:
+
+- **You can never decide your own change request.** Approving it would defeat
+  the two-person rule, and rejecting it is just withdrawing — the platform
+  refuses both, and deciding at all needs an `approve` grant rather than write
+  access on the underlying resource. Rather than let you read the whole case
+  and then hand you a 409, the app says so up front and offers **Withdraw**
+  where the decision buttons would be.
 
 - **`next-ip-preview` hands out a candidate, not a reservation.** It takes no
   lock. Two people looking at once see the same address and the first to submit

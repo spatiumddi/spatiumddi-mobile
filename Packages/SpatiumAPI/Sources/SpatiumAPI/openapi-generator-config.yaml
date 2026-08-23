@@ -39,8 +39,10 @@ filter:
     - /api/v1/search
     - /api/v1/search/types
 
-    # Alerts.
+    # Alerts. Resolving is a separate path from the collection — filtering a
+    # collection never brings its sub-paths with it.
     - /api/v1/alerts/events
+    - /api/v1/alerts/events/{event_id}/resolve
 
     # IPAM: space → block → subnet → address.
     - /api/v1/ipam/spaces
@@ -86,9 +88,13 @@ filter:
     # AI configuration are all deliberately absent — a phone is a bad place to
     # run any of them.
 
-    # Approvals and requests.
+    # Approvals and requests. Deciding one is the best mobile write there is:
+    # the approver is the person most often away from a desk.
     - /api/v1/change-requests
     - /api/v1/change-requests/{cr_id}
+    - /api/v1/change-requests/{cr_id}/approve
+    - /api/v1/change-requests/{cr_id}/reject
+    - /api/v1/change-requests/{cr_id}/cancel
     - /api/v1/requests
 
     # Expiry tracking: the two things that page someone at an awkward hour.
@@ -112,8 +118,11 @@ filter:
     - /api/v1/sites
     - /api/v1/providers
 
-    # Security signal.
+    # Security signal. Acknowledging is in; blocking a MAC is deliberately
+    # not — it changes what that device gets from DHCP, and a mis-tap on a
+    # train has a blast radius this app should not hand out one-handed.
     - /api/v1/new-devices/sightings
+    - /api/v1/new-devices/sightings/{sighting_id}/acknowledge
     - /api/v1/new-devices/summary
 
     # Administration: who is in, what they hold, and what has been done.

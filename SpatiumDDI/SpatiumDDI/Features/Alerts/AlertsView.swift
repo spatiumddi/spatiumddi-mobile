@@ -6,17 +6,27 @@
 import SpatiumAPI
 import SwiftUI
 
-/// The alert list.
+/// The alert list, and the one write it needs.
 ///
-/// Read-only. Acknowledging and resolving are #884 Phase 2, and this is Phase 1
-/// — the list exists so an operator can tell whether something needs them, not
-/// so they can clear it from the notification shade.
+/// Resolving is here because the alternative is worse than an inconvenience:
+/// an operator who has just confirmed the pool is fine again cannot say so
+/// until they find a laptop, so the alert stays red, and everyone else who
+/// looks at the dashboard between now and then re-triages something that is
+/// already dealt with.
+///
+/// Deliberately swipe-then-confirm rather than a full-swipe: a full swipe is a
+/// single gesture, and non-negotiable #6 does not carve out an exception for
+/// writes that happen to be reversible.
 struct AlertsView: View {
     let session: ControlPlaneSession
 
     @State private var state: LoadState<[Components.Schemas.AlertEventResponse]> = .idle
     @State private var openOnly = true
     @State private var severityFilter: Severity?
+    /// The alert waiting on a confirmation, if any.
+    @State private var pending: Components.Schemas.AlertEventResponse?
+    @State private var resolvingID: String?
+    @State private var failure: FailureMessage?
 
     private var events: [Components.Schemas.AlertEventResponse] {
         guard case .loaded(let events) = state else { return [] }
@@ -78,14 +88,93 @@ struct AlertsView: View {
                             } ?? "No alert matches this filter."
                         )
                     } else {
-                        ForEach(events, id: \.id) { AlertRow(event: $0) }
+                        ForEach(events, id: \.id) { event in
+                            AlertRow(event: event, isResolving: resolvingID == event.id)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    if event.resolvedAt == nil {
+                                        Button {
+                                            failure = nil
+                                            pending = event
+                                        } label: {
+                                            Label("Resolve", systemImage: "checkmark.circle")
+                                        }
+                                        .tint(.green)
+                                    }
+                                }
+                        }
                     }
+                }
+            }
+
+            if let failure {
+                Section("Not resolved") {
+                    Label(failure, systemImage: "xmark.octagon.fill")
+                        .foregroundStyle(.red)
                 }
             }
         }
         .navigationTitle("Alerts")
         .refreshable { await fetch() }
         .task(id: openOnly) { await fetch() }
+        .alert(
+            "Resolve this alert?",
+            isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+            presenting: pending
+        ) { event in
+            Button("Cancel", role: .cancel) { pending = nil }
+            Button("Resolve") { Task { await resolve(event) } }
+        } message: { event in
+            // The alert's own words, so the operator confirms the thing in
+            // front of them rather than "are you sure".
+            Text(verbatim: resolutionSummary(for: event))
+        }
+    }
+
+    /// What is being resolved, named the way the row names it.
+    private func resolutionSummary(for event: Components.Schemas.AlertEventResponse) -> String {
+        let subject = event.subjectDisplay.isEmpty ? event.subjectType : event.subjectDisplay
+        let closing = String(
+            localized:
+                "It stops counting as unresolved. It fires again if the condition comes back."
+        )
+        return subject.isEmpty
+            ? "\(event.message)\n\n\(closing)"
+            : "\(subject)\n\(event.message)\n\n\(closing)"
+    }
+
+    private func resolve(_ event: Components.Schemas.AlertEventResponse) async {
+        pending = nil
+        resolvingID = event.id
+        failure = nil
+        defer { resolvingID = nil }
+
+        do {
+            let response = try await session.client.resolveEventApiV1AlertsEventsEventIdResolvePost(
+                path: .init(eventId: event.id)
+            )
+            switch response {
+            case .ok(let ok):
+                let resolved = try ok.body.json
+                guard case .loaded(let rows) = state else { return }
+                // With "unresolved only" on, a resolved alert leaves the list;
+                // with it off it stays and grows a badge.
+                state = .loaded(
+                    RowUpdate.apply(resolved, to: rows, id: \.id) { row in
+                        !openOnly || row.resolvedAt == nil
+                    }
+                )
+            case .unprocessableContent:
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
+            }
+        } catch {
+            // Nothing about resolving is soft-conflictable, so this never
+            // offers to re-send.
+            if case .failed(let message) = await WriteFailure.classify(error, forced: true) {
+                failure = message
+            }
+        }
     }
 
     private func load() { Task { await fetch() } }
@@ -117,6 +206,7 @@ struct AlertsView: View {
 
 private struct AlertRow: View {
     let event: Components.Schemas.AlertEventResponse
+    var isResolving = false
 
     private var severity: Severity { Severity(apiValue: event.severity) }
 
@@ -127,7 +217,9 @@ private struct AlertRow: View {
                 Text(event.subjectDisplay.isEmpty ? event.subjectType : event.subjectDisplay)
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                if event.resolvedAt != nil {
+                if isResolving {
+                    ProgressView()
+                } else if event.resolvedAt != nil {
                     Badge(localised: "resolved", tint: .green)
                 }
             }
