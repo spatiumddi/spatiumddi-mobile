@@ -41,6 +41,44 @@ struct UtilisationTests {
         #expect(OverviewModel.IPAMTotals.weightedUtilisation([(allocated: 0, total: 0)]) == 0)
     }
 
+    /// The crash this guards against, exactly as it happened.
+    ///
+    /// A real estate held `2001:db8:10:1::/64`. 2^64 does not fit in the signed
+    /// 64-bit integer the API returns, so the control plane sends `Int64.max` —
+    /// and `Int` addition traps on overflow in Swift, so summing it with any
+    /// other subnet took the app down with SIGTRAP the moment the overview drew.
+    ///
+    /// Every other test here used small numbers, which is exactly why none of
+    /// them caught it.
+    @Test("A clamped IPv6 total does not overflow the sum")
+    func clampedTotalDoesNotTrap() {
+        let utilisation = OverviewModel.IPAMTotals.weightedUtilisation([
+            (allocated: 1, total: Int.max),
+            (allocated: 128, total: 256),
+            (allocated: 4, total: 16),
+        ])
+        #expect(utilisation >= 0)
+        #expect(utilisation <= 100)
+    }
+
+    @Test("Summing many clamped totals still doesn't overflow")
+    func manyClampedTotals() {
+        let subnets = Array(repeating: (allocated: Int.max, total: Int.max), count: 64)
+        let utilisation = OverviewModel.IPAMTotals.weightedUtilisation(subnets)
+        #expect(utilisation <= 100)
+        #expect(!utilisation.isNaN)
+    }
+
+    // Allocated can never exceed total in practice, but floating-point
+    // accumulation over clamped values must not be able to report 104% used.
+    @Test("Utilisation is capped at 100%")
+    func cappedAtFull() {
+        let utilisation = OverviewModel.IPAMTotals.weightedUtilisation([
+            (allocated: 500, total: 256)
+        ])
+        #expect(utilisation == 100)
+    }
+
     @Test("A half-used estate reports half")
     func halfUsed() {
         let utilisation = OverviewModel.IPAMTotals.weightedUtilisation([

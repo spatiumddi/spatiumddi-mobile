@@ -81,20 +81,48 @@ final class OverviewModel {
         var blocks: Int
         var subnets: [Components.Schemas.SubnetResponse]
 
+        /// A subnet's family, from its network. A colon can only be IPv6 — an
+        /// IPv4 CIDR cannot contain one — and the API carries no family field.
+        var ipv4Subnets: [Components.Schemas.SubnetResponse] {
+            subnets.filter { !$0.network.contains(":") }
+        }
+
+        var ipv6SubnetCount: Int { subnets.count - ipv4Subnets.count }
+
+        /// IPv4 only, deliberately.
+        ///
+        /// Counting IPv6 here is not merely imprecise, it is meaningless: one
+        /// /64 holds 2^64 addresses, so a single one drags any size-weighted
+        /// figure to zero and keeps it there no matter how full the estate's
+        /// real subnets get. Nobody measures a /64's fill rate.
         var utilisationPercent: Double {
-            IPAMTotals.weightedUtilisation(subnets.map { ($0.allocatedIps, $0.totalIps) })
+            IPAMTotals.weightedUtilisation(ipv4Subnets.map { ($0.allocatedIps, $0.totalIps) })
         }
 
-        /// Allocation across every subnet, not the mean of the percentages — a
-        /// /30 at 100% and a /16 at 1% average to 50% only if you ignore that
-        /// they differ in size by a factor of sixteen thousand.
+        /// Allocation across the subnets given, not the mean of the percentages
+        /// — a /30 at 100% and a /16 at 1% average to 50% only if you ignore
+        /// that they differ in size by a factor of sixteen thousand.
+        ///
+        /// Accumulated in `Double`. `Int` addition traps on overflow in Swift,
+        /// and the control plane clamps a count it cannot express to
+        /// `Int64.max` — an IPv6 /64 comes back as exactly that. Summing it
+        /// with anything at all overflows and takes the whole app down, which
+        /// is precisely how this crashed on a real estate. Callers filter IPv6
+        /// out, but a display metric must not be able to crash the app even if
+        /// one slips through.
         static func weightedUtilisation(_ subnets: [(allocated: Int, total: Int)]) -> Double {
-            let total = subnets.reduce(0) { $0 + $1.total }
+            var total = 0.0
+            var allocated = 0.0
+            for subnet in subnets {
+                total += Double(subnet.total)
+                allocated += Double(subnet.allocated)
+            }
             guard total > 0 else { return 0 }
-            let allocated = subnets.reduce(0) { $0 + $1.allocated }
-            return Double(allocated) / Double(total) * 100
+            return min(allocated / total * 100, 100)
         }
 
+        /// Busiest by the server's own percentage, which is safe for both
+        /// families — it is a `Double` the control plane computed.
         var busiest: [Components.Schemas.SubnetResponse] {
             subnets.sorted { $0.utilizationPercent > $1.utilizationPercent }.prefix(5).map { $0 }
         }

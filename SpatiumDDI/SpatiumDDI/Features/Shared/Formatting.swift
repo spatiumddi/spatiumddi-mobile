@@ -31,3 +31,18 @@ extension Date {
         return date.formatted(.relative(presentation: .named))
     }
 }
+
+extension Int {
+    /// Whether the control plane clamped a count it could not express.
+    ///
+    /// An IPv6 /64 holds 2^64 addresses, which does not fit in the signed 64-bit
+    /// integer the API returns, so the server sends `Int64.max` instead.
+    /// Rendering that as a literal address count states a number that is not the
+    /// real one — and doing arithmetic on it overflows, which traps.
+    var isClampedCount: Bool { self == Int.max }
+
+    /// An address count, or "very large" where the real figure was clamped.
+    var formattedAddressCount: String {
+        isClampedCount ? "very large" : formatted()
+    }
+}

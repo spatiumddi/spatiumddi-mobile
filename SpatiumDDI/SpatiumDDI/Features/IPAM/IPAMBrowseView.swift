@@ -90,8 +90,14 @@ struct IPAMBlocksView: View {
                             }
                             UtilisationBar(percent: block.utilizationPercent)
                             if let allocated = block.allocatedIps, let total = block.totalIps {
-                                Text("\(allocated.formatted()) of \(total.formatted()) addresses")
-                                    .font(.caption2).foregroundStyle(.secondary)
+                                // `formattedAddressCount` rather than raw: an
+                                // IPv6 block's total comes back clamped to
+                                // Int64.max, and printing that as an address
+                                // count states a number that is not real.
+                                Text(
+                                    "\(allocated.formatted()) of \(total.formattedAddressCount) addresses"
+                                )
+                                .font(.caption2).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -203,7 +209,9 @@ struct IPAMAddressesView: View {
                 if let gateway = subnet.gateway { LabeledContent("Gateway", value: gateway) }
                 LabeledContent("Status", value: subnet.status)
                 LabeledContent("Utilisation") {
-                    Text("\(subnet.allocatedIps.formatted()) / \(subnet.totalIps.formatted())")
+                    Text(
+                        "\(subnet.allocatedIps.formatted()) / \(subnet.totalIps.formattedAddressCount)"
+                    )
                 }
             }
 

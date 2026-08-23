@@ -202,8 +202,19 @@ private struct IPAMSummarySection: View {
                 .listRowInsets(.init(top: 8, leading: 12, bottom: 8, trailing: 12))
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Address space in use").font(.caption).foregroundStyle(.secondary)
+                    // Named IPv4 rather than left ambiguous: a /64 would drag
+                    // any all-family figure to zero and hold it there, so a bar
+                    // labelled "address space" would be quietly meaningless on
+                    // every dual-stack estate.
+                    Text("IPv4 address space in use").font(.caption).foregroundStyle(.secondary)
                     UtilisationBar(percent: totals.utilisationPercent)
+                    if totals.ipv6SubnetCount > 0 {
+                        Text(
+                            "\(totals.ipv6SubnetCount) IPv6 subnet\(totals.ipv6SubnetCount == 1 ? "" : "s") excluded — utilisation isn't a useful measure of a /64."
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    }
                 }
 
                 if !totals.busiest.isEmpty {
