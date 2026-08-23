@@ -26,6 +26,40 @@ struct AppFlowModelTests {
         StoredServer(address: ServerAddress(host: host, port: 8443), label: label)
     }
 
+    /// The loop this caused on a real phone: sign in, reach the menu, and the
+    /// next scene-phase change re-runs `restore()` over the top of the live
+    /// session, dropping back to the lock screen — unlock, menu, lock, forever.
+    ///
+    /// `reconsiderIfUntouched` exists for a launch that could not read the
+    /// Keychain, which is only ever a stage that concluded there was nothing
+    /// to unlock. It must never touch a stage the operator has moved past.
+    @Test("Becoming active never unwinds a session the operator is already in")
+    func reconsideringNeverUnwindsProgress() {
+        let (flow, server) = isolatedFlow()
+
+        // Signed in: the state the loop threw away.
+        flow.signedIn(with: "sddi_test", to: server)
+        flow.reconsiderIfUntouched()
+        #expect(flow.stage == .signedIn(server))
+        #expect(flow.token == "sddi_test")
+
+        // Part-way through sign-in is equally not to be restored over.
+        flow.connected(to: server)
+        let afterConnect = flow.stage
+        flow.reconsiderIfUntouched()
+        #expect(flow.stage == afterConnect)
+    }
+
+    /// The other half: a deliberate move to the server list stays put, so the
+    /// re-check cannot drag an operator back into a server they just left.
+    @Test("A chosen server list is not restored away from")
+    func chosenListStays() {
+        let (flow, _) = isolatedFlow()
+        flow.showServers()
+        flow.reconsiderIfUntouched()
+        #expect(flow.stage == .servers)
+    }
+
     @Test("A fresh install starts by asking for a server")
     func startsAtAddServer() {
         let (flow, _) = isolatedFlow()

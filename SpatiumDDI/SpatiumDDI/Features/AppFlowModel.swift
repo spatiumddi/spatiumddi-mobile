@@ -44,6 +44,57 @@ final class AppFlowModel {
         restore()
     }
 
+    /// True while the stage is still whatever `restore()` concluded, and no
+    /// deliberate navigation has happened since.
+    private var isLaunchStage = true
+
+    /// Why the app believes there is no stored token to unlock, when a server
+    /// was configured and one was expected.
+    ///
+    /// Surfaced on the sign-in screen rather than kept for a debugger. Being
+    /// asked to enrol again is alarming, and "the Keychain answered -25300" is
+    /// both the honest reason and the thing that makes the next report useful
+    /// — twice now this has been diagnosed by inference from a symptom, which
+    /// is slower and less reliable than the device simply saying what happened.
+    private(set) var tokenAbsence: String?
+
+    /// Records the Keychain's own answer for a server that should have a token.
+    private func noteAbsence(for server: StoredServer) {
+        switch tokens.presence(for: server.address) {
+        case .present, .absent:
+            tokenAbsence = nil
+        case .unknown(let status):
+            tokenAbsence = "The Keychain could not be read (status \(status))."
+        }
+    }
+
+    /// Re-reads the stored state if nothing has been chosen since launch.
+    ///
+    /// `restore()` runs in `init`, which is not always a moment the Keychain
+    /// can answer questions: an item stored `WhenPasscodeSetThisDeviceOnly` is
+    /// unreadable while the device is locked, and iOS launches apps for its own
+    /// reasons — a prewarm, a relaunch after a force-quit — without the screen
+    /// ever being unlocked. A launch that concluded "nothing to unlock" would
+    /// otherwise keep that conclusion for the whole session and send the
+    /// operator to enrol a token they already have.
+    ///
+    /// Guarded so it cannot undo a choice: an operator who deliberately went to
+    /// the server list stays there.
+    func reconsiderIfUntouched() {
+        guard isLaunchStage else { return }
+        // Only a stage that concluded *there is nothing to unlock* is worth
+        // revisiting. Re-running `restore()` from anywhere else undoes work
+        // the operator has already done — from `.signedIn` it throws them back
+        // to the lock screen, they unlock, the next scene-phase change throws
+        // them back again, and the app loops. Which is exactly what it did.
+        switch stage {
+        case .servers, .addServer:
+            restore()
+        case .signIn, .locked, .signedIn:
+            return
+        }
+    }
+
     /// The chosen servers are configuration, not response data — non-negotiable
     /// #3 governs what the *control plane returns*, and these are the operator's
     /// own settings. They are not credentials, so they don't belong in the
@@ -65,6 +116,9 @@ final class AppFlowModel {
         {
             stage = .locked(current, message: nil)
         } else {
+            if let current = servers.first(where: { $0.id == registry.currentID() }) {
+                noteAbsence(for: current)
+            }
             stage = .servers
         }
     }
@@ -111,6 +165,7 @@ final class AppFlowModel {
     /// pressed the button; making them confirm an opaque `sddi_…` string
     /// afterwards is ceremony, not consent.
     func enrolled(with token: String, to server: StoredServer) {
+        isLaunchStage = false
         remember(server)
         self.token = token
         pendingToken = nil
@@ -118,6 +173,7 @@ final class AppFlowModel {
     }
 
     func connected(to server: StoredServer, pendingToken: String? = nil) {
+        isLaunchStage = false
         remember(server)
         // Reaching a server is always the start of a new session, so a token
         // still in memory belongs to whatever came before — possibly a
@@ -133,6 +189,7 @@ final class AppFlowModel {
     }
 
     func signedIn(with token: String, to server: StoredServer) {
+        isLaunchStage = false
         self.token = token
         pendingToken = nil
         stage = .signedIn(server)
@@ -140,6 +197,10 @@ final class AppFlowModel {
 
     func unlock() async {
         guard case .locked(let server, _) = stage else { return }
+        // Unlocking is the operator acting, so whatever launch concluded is no
+        // longer the current state — and must not be restored over the top of
+        // the session they just authenticated into.
+        isLaunchStage = false
         do {
             let stored = try await tokens.token(
                 for: server.address,
@@ -150,9 +211,32 @@ final class AppFlowModel {
         } catch TokenStore.StoreError.cancelled {
             stage = .locked(server, message: nil)
         } catch TokenStore.StoreError.notFound, TokenStore.StoreError.enrollmentChanged {
-            // The item is gone or was invalidated; signing in again is the fix.
-            try? tokens.delete(for: server.address)
-            stage = .signIn(server)
+            // **Never delete here.** `errSecItemNotFound` does not only mean
+            // "the item is gone": the Keychain says exactly the same thing when
+            // an item is present but its access control cannot be satisfied by
+            // the context presented — a biometric item asked for with a
+            // passcode-authenticated context, say. Deleting on that signal
+            // destroys a working credential over a failed *read*, and there is
+            // no way back from it but pasting the token in again.
+            //
+            // Nothing needs deleting for recovery either way: `save` clears any
+            // existing item before adding, because access control cannot be
+            // changed by an update. So the only thing that delete ever achieved
+            // here was the data loss.
+            if tokens.hasToken(for: server.address) {
+                // Still there, so this was the read failing rather than the
+                // token being absent. Say so, and leave the way out to the
+                // operator — Sign Out is on this screen.
+                stage = .locked(
+                    server,
+                    message: String(
+                        localized:
+                            "The stored token could not be unsealed. It is still on this device — try again, or sign out to replace it."
+                    )
+                )
+            } else {
+                stage = .signIn(server)
+            }
         } catch {
             stage = .locked(server, message: error.localizedDescription)
         }
@@ -181,6 +265,7 @@ final class AppFlowModel {
     }
 
     func signOut() {
+        isLaunchStage = false
         let server = currentServer
         token = nil
         pendingToken = nil
@@ -195,12 +280,14 @@ final class AppFlowModel {
 
     /// Show the list. Every session-scoped state goes with the torn-down view.
     func showServers() {
+        isLaunchStage = false
         token = nil
         pendingToken = nil
         stage = .servers
     }
 
     func showAddServer() {
+        isLaunchStage = false
         token = nil
         pendingToken = nil
         stage = .addServer
@@ -215,10 +302,16 @@ final class AppFlowModel {
     /// "nothing an inactive server returned may linger" true by construction
     /// rather than by remembering to clear things.
     func select(_ server: StoredServer) {
+        isLaunchStage = false
         token = nil
         pendingToken = nil
         registry.setCurrentID(server.id)
-        stage = tokens.hasToken(for: server.address) ? .locked(server, message: nil) : .signIn(server)
+        if tokens.hasToken(for: server.address) {
+            stage = .locked(server, message: nil)
+        } else {
+            noteAbsence(for: server)
+            stage = .signIn(server)
+        }
     }
 
     /// Forget a server entirely: its token, its certificate pin, its name.
@@ -227,6 +320,7 @@ final class AppFlowModel {
     /// removing a server means it, and leaving an approved certificate behind
     /// for a host they have finished with is a pin nobody is watching.
     func remove(_ server: StoredServer) {
+        isLaunchStage = false
         try? tokens.delete(for: server.address)
         try? trust.removePin(for: server.address)
         servers.removeAll { $0.id == server.id }

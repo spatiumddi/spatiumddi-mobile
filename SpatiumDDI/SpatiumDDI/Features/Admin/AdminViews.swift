@@ -17,6 +17,10 @@ struct NewDevicesView: View {
     @State private var state: LoadState<[Components.Schemas.SightingOut]> = .idle
     @State private var total = 0
     @State private var includeRandomised = false
+    /// The sighting waiting on a confirmation, if any.
+    @State private var pending: Components.Schemas.SightingOut?
+    @State private var acknowledgingID: String?
+    @State private var failure: FailureMessage?
 
     var body: some View {
         List {
@@ -40,6 +44,11 @@ struct NewDevicesView: View {
                             HStack {
                                 Text(sighting.ipAddress).font(.body.monospaced())
                                 Spacer()
+                                if acknowledgingID == sighting.id {
+                                    ProgressView()
+                                } else if sighting.acknowledgedAt != nil {
+                                    Badge(localised: "acknowledged", tint: .green)
+                                }
                                 Badge(
                                     text: sighting.classification,
                                     tint: sighting.classification.lowercased() == "unknown"
@@ -60,6 +69,17 @@ struct NewDevicesView: View {
                                 Badge(localised: "randomised MAC")
                             }
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if sighting.acknowledgedAt == nil {
+                                Button {
+                                    failure = nil
+                                    pending = sighting
+                                } label: {
+                                    Label("Acknowledge", systemImage: "checkmark.circle")
+                                }
+                                .tint(.green)
+                            }
+                        }
                     }
                 }
             } header: {
@@ -69,10 +89,87 @@ struct NewDevicesView: View {
                     Text("Sightings")
                 }
             }
+
+            if let failure {
+                Section("Not acknowledged") {
+                    Label(failure, systemImage: "xmark.octagon.fill")
+                        .foregroundStyle(.red)
+                }
+            }
         }
         .navigationTitle("New Devices")
         .refreshable { await fetch() }
         .task(id: includeRandomised) { await fetch() }
+        .alert(
+            "Acknowledge this device?",
+            isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+            presenting: pending
+        ) { sighting in
+            Button("Cancel", role: .cancel) { pending = nil }
+            Button("Acknowledge") { Task { await acknowledge(sighting) } }
+        } message: { sighting in
+            Text(verbatim: acknowledgementSummary(for: sighting))
+        }
+    }
+
+    /// What is being acknowledged, in the terms the row shows it.
+    ///
+    /// Names the MAC as well as the address: the address is what the row leads
+    /// with, but the MAC is the thing the sighting is actually about, and on a
+    /// randomised one it is also the reason this may not stay acknowledged.
+    private func acknowledgementSummary(for sighting: Components.Schemas.SightingOut) -> String {
+        var lines = ["\(sighting.macAddress) at \(sighting.ipAddress)"]
+        if let vendor = sighting.ouiVendor, !vendor.isEmpty { lines.append(vendor) }
+        lines.append(
+            String(
+                localized:
+                    "It stops counting as new. This says you have seen it, and changes nothing about what it is allowed to do."
+            )
+        )
+        if sighting.isRandomized {
+            lines.append(
+                String(
+                    localized:
+                        "This MAC is randomised, so the same device will appear again under a different one."
+                )
+            )
+        }
+        return lines.joined(separator: "\n\n")
+    }
+
+    private func acknowledge(_ sighting: Components.Schemas.SightingOut) async {
+        pending = nil
+        acknowledgingID = sighting.id
+        failure = nil
+        defer { acknowledgingID = nil }
+
+        do {
+            let response =
+                try await session.client
+                .acknowledgeApiV1NewDevicesSightingsSightingIdAcknowledgePost(
+                    path: .init(sightingId: sighting.id),
+                    // No note from the phone: the sheet that would collect one
+                    // costs more taps than the acknowledgement is worth, and
+                    // an empty note is not worse than no note.
+                    body: .json(.init(note: nil))
+                )
+            switch response {
+            case .ok(let ok):
+                let acknowledged = try ok.body.json
+                guard case .loaded(let rows) = state else { return }
+                // The list is not filtered on acknowledgement, so the row
+                // stays and gains its badge.
+                state = .loaded(RowUpdate.apply(acknowledged, to: rows, id: \.id))
+            case .unprocessableContent:
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
+            }
+        } catch {
+            if case .failed(let message) = await WriteFailure.classify(error, forced: true) {
+                failure = message
+            }
+        }
     }
 
     private func fetch() async {

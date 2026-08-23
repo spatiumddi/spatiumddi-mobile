@@ -53,6 +53,12 @@ Every screen here answers a question you'd otherwise need a laptop for:
 - Is the DHCP pool that page-out was about actually exhausted?
 - What is `10.40.12.68`, and who has had it before?
 - Is anything on fire right now?
+- Can the *server* reach that host, resolve that name, open that port?
+
+That last one is why the diagnostics run on the control plane rather than on
+the phone. Your phone is on Wi-Fi, or a VPN, or a mobile network, and none of
+those is where the service lives — so a ping from your pocket answers a
+question nobody asked.
 
 It talks to a SpatiumDDI control plane over its public REST API and contains no
 server-side code. **This repo is a client of a contract it does not own** — the
@@ -64,10 +70,13 @@ platform, the API and the roadmap all live in
 | Surface | What you get |
 |---|---|
 | **Overview** | Platform health per component, maintenance/demo banners, server version and update check, unresolved alerts by severity, estate counts, and a size-weighted utilisation figure with the busiest subnets |
-| **Alerts** | Every alert event, most-severe first, filterable by severity and unresolved-only |
+| **Alerts** | Every alert event, most-severe first, filterable by severity and unresolved-only. **Resolve** one from the list — swipe, read what it says, confirm |
+| **Approvals** | Change requests with the change they'd make, who asked, and why the platform decided it needed approving. **Approve, reject or withdraw** — a decision you can make from a train, which is the point |
+| **New devices** | First-seen MACs with vendor, subnet and randomisation, and **acknowledge** for the ones that turn out to be fine |
 | **IPAM** | The full tree — space → block → subnet → address — with utilisation at every level, and a per-address detail screen covering identity, fingerprinted device, last-seen signal and the DNS/DHCP objects linked to it. **Allocate** an address (next-available or specific, named and published to DNS in the same request), **edit** what it says about itself, **delete** it behind a typed confirmation |
 | **DNS** | Group → zone → record, with SOA facts, DNSSEC state and serial per zone, and record filtering by type or substring. **Add, edit and delete records** — A, AAAA, CNAME, TXT, MX, SRV, NS, PTR, CAA — each stated in zone-file form before it is sent |
 | **DHCP** | Server health and HA state, a live ACK/NAK traffic chart, leases with fingerprinted device class, and scopes with their pools and reservations |
+| **Network Tools** | Ping, traceroute, MTR, port test, dig, propagation check, TLS certificate, WHOIS, MAC vendor and Wake-on-LAN — all run **from the control plane**, which is the vantage point that makes them worth having |
 | **Search** | Global search across 16 resource types, grouped by kind, ranked server-side |
 | **Connect** | HTTPS-only, with an explicit certificate-trust flow for the private CAs self-hosted installs actually use |
 | **Sign in** | Per-device `sddi_` API token, by paste or by scanning the enrolment QR code, stored in the Keychain behind Face ID / Touch ID — or the device passcode, on hardware that has no biometrics, with the trade-off stated rather than silently taken |
@@ -122,16 +131,17 @@ there is; the rest of the platform's surface stays desktop work.
 
 **Landed:** allocating an address and creating a DNS record
 ([#7](https://github.com/spatiumddi/spatiumddi-mobile/issues/7)); editing and
-deleting both ([#8](https://github.com/spatiumddi/spatiumddi-mobile/issues/8)).
+deleting both ([#8](https://github.com/spatiumddi/spatiumddi-mobile/issues/8));
+resolving an alert
+([#9](https://github.com/spatiumddi/spatiumddi-mobile/issues/9)), deciding a
+change request
+([#10](https://github.com/spatiumddi/spatiumddi-mobile/issues/10)) and
+acknowledging a new-device sighting
+([#12](https://github.com/spatiumddi/spatiumddi-mobile/issues/12)).
 
-**Next**, one issue each: resolve an alert
-([#9](https://github.com/spatiumddi/spatiumddi-mobile/issues/9)), act on change
-requests ([#10](https://github.com/spatiumddi/spatiumddi-mobile/issues/10)),
-toggle maintenance mode
-([#11](https://github.com/spatiumddi/spatiumddi-mobile/issues/11)), acknowledge
-new-device sightings
-([#12](https://github.com/spatiumddi/spatiumddi-mobile/issues/12)), and revoke
-a lost device's token
+**Next:** toggle maintenance mode
+([#11](https://github.com/spatiumddi/spatiumddi-mobile/issues/11)) and revoke a
+lost device's token
 ([#13](https://github.com/spatiumddi/spatiumddi-mobile/issues/13)).
 
 Every write is confirmed, and the confirmation names the actual thing — the
@@ -139,7 +149,14 @@ address and the subnet, or the record in zone-file form — rather than asking
 "are you sure". No destructive action lands on a single tap: this is an app for
 changing production DNS and DHCP from a phone, one-handed, possibly on a train.
 
-Two behaviours are worth knowing about, because they are the ones that bite:
+Three behaviours are worth knowing about, because they are the ones that bite:
+
+- **You can never decide your own change request.** Approving it would defeat
+  the two-person rule, and rejecting it is just withdrawing — the platform
+  refuses both, and deciding at all needs an `approve` grant rather than write
+  access on the underlying resource. Rather than let you read the whole case
+  and then hand you a 409, the app says so up front and offers **Withdraw**
+  where the decision buttons would be.
 
 - **`next-ip-preview` hands out a candidate, not a reservation.** It takes no
   lock. Two people looking at once see the same address and the first to submit
@@ -189,9 +206,13 @@ actually read while the device is locked — is
 ### Beyond the phases — parity with the web console
 
 A gap analysis against the platform's web GUI, surface by surface, is filed as
-labelled issues: network tools and Wake-on-LAN
-([#14](https://github.com/spatiumddi/spatiumddi-mobile/issues/14)), chart and
-Top-N report parity
+labelled issues. **Landed:** network tools and Wake-on-LAN
+([#14](https://github.com/spatiumddi/spatiumddi-mobile/issues/14)) — ten
+diagnostics run from the control plane, of which only Wake-on-LAN changes
+anything, and it reports that the packet was *sent* rather than implying a
+machine woke up that nobody checked on.
+
+Still open: chart and Top-N report parity
 ([#15](https://github.com/spatiumddi/spatiumddi-mobile/issues/15)),
 "where is this MAC" from switch ARP/FDB/LLDP polling
 ([#16](https://github.com/spatiumddi/spatiumddi-mobile/issues/16)), the

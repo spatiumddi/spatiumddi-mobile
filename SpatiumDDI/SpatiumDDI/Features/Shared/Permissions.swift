@@ -27,13 +27,34 @@ final class Permissions {
     /// Whether the grant list was actually read.
     private(set) var isKnown = false
 
+    /// Who this account *is*, which some rules turn on as much as the grants.
+    ///
+    /// Identity sits here rather than in a screen because the rules that need
+    /// it are permission rules wearing a different hat: the platform refuses a
+    /// self-approval on a change request no matter what the approver holds. An
+    /// app that cannot compare the two can only find that out by being told
+    /// 409 after the operator has already decided.
+    private(set) var userID: String?
+
     init() {}
 
     /// A known grant list, for previews and tests.
-    init(isSuperadmin: Bool, grants: [Components.Schemas.PermissionGrant]) {
+    init(isSuperadmin: Bool, grants: [Components.Schemas.PermissionGrant], userID: String? = nil) {
         self.isSuperadmin = isSuperadmin
         self.grants = grants
+        self.userID = userID
         self.isKnown = true
+    }
+
+    /// Whether this account is the person named by `userID`.
+    ///
+    /// Answers **false when the app doesn't know** — the opposite of the
+    /// fails-open rule below, and deliberately. This gates warnings that say
+    /// "you can't decide your own request"; asserting that without knowing who
+    /// is signed in would put the words in front of the wrong operator.
+    func isMe(_ userID: String?) -> Bool {
+        guard let userID, let mine = self.userID, !userID.isEmpty else { return false }
+        return userID == mine
     }
 
     /// Whether a write of `resourceType` should be offered.
@@ -46,6 +67,17 @@ final class Permissions {
         guard isKnown else { return true }
         if isSuperadmin { return true }
         return resourceTypes.contains { allows(action: "write", type: $0, id: id) }
+    }
+
+    /// Whether an action other than `write` should be offered.
+    ///
+    /// Same fails-open rule as `canWrite`. Not every action in the grammar is
+    /// a write: deciding a change request needs `{approve, change_request}`,
+    /// which no amount of write access on the underlying resource implies.
+    func can(_ action: String, on resourceType: String, id: String? = nil) -> Bool {
+        guard isKnown else { return true }
+        if isSuperadmin { return true }
+        return allows(action: action, type: resourceType, id: id)
     }
 
     private func allows(action: String, type: String, id: String?) -> Bool {
@@ -61,8 +93,19 @@ final class Permissions {
     }
 
     func load(from session: ControlPlaneSession) async {
-        let response = try? await session.client.getMyPermissionsApiV1AuthMePermissionsGet()
-        guard case .ok(let ok) = response, let permissions = try? ok.body.json else { return }
+        // Two calls, run together: the grant list and who is holding it. Both
+        // are best-effort — a failure here leaves `isKnown` false, which means
+        // every affordance stays visible and the server decides.
+        async let grantList = session.client.getMyPermissionsApiV1AuthMePermissionsGet()
+        async let identity = session.client.getMeApiV1AuthMeGet()
+
+        if case .ok(let ok) = try? await identity, let me = try? ok.body.json {
+            userID = me.id
+        }
+
+        guard case .ok(let ok) = try? await grantList, let permissions = try? ok.body.json else {
+            return
+        }
         isSuperadmin = permissions.isSuperadmin
         grants = permissions.grants
         isKnown = true

@@ -16,7 +16,17 @@ struct AppRootView: View {
             .onChange(of: scenePhase) { _, phase in
                 // Lock as the app leaves the foreground, not when it returns —
                 // the token must not be resident while the app is backgrounded.
-                if phase != .active { flow.lockForBackground() }
+                if phase != .active {
+                    flow.lockForBackground()
+                } else {
+                    // Becoming active is the first moment the Keychain is
+                    // certain to answer. A launch that happened while the
+                    // device was locked — a prewarm, or a relaunch after a
+                    // force-quit — cannot see an item stored
+                    // `WhenPasscodeSetThisDeviceOnly`, and would otherwise
+                    // spend the whole session believing there was no token.
+                    flow.reconsiderIfUntouched()
+                }
             }
     }
 
@@ -54,7 +64,8 @@ struct AppRootView: View {
                 model: SignInModel(server: server, prefilledToken: flow.pendingToken) { token in
                     flow.signedIn(with: token, to: server)
                 },
-                onChangeServer: { flow.showServers() }
+                onChangeServer: { flow.showServers() },
+                absence: flow.tokenAbsence
             )
 
         case .locked(let server, let message):
@@ -214,6 +225,7 @@ struct SignedInView: View {
                 // trade on a screen big enough to show both.
                 .navigationSplitViewStyle(.balanced)
                 .environment(permissions)
+                .environment(features)
             } else {
                 ProgressView()
             }
@@ -283,6 +295,8 @@ struct SignedInView: View {
             AuditLogView(session: session)
         case .trash:
             TrashView(session: session)
+        case .networkTools:
+            NetworkToolsView(session: session)
         case .search:
             SearchView(session: session)
         case .about:

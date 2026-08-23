@@ -162,8 +162,15 @@ nonisolated struct TokenStore: Sendable {
     ///
     /// Asks only for attributes: an attribute-only query doesn't unseal the
     /// value, so it doesn't trip the access control.
+    /// Whether the app should behave as though a token is stored.
+    ///
+    /// Errs towards **yes**, because the two wrong answers are not equally
+    /// bad. Saying "yes" when there is nothing costs one unlock attempt that
+    /// fails honestly and drops to sign-in. Saying "no" when the token is
+    /// there tells the operator their credential is gone and makes them enrol
+    /// a new one — over what may have been a momentary refusal.
     func hasToken(for address: ServerAddress) -> Bool {
-        attributes(for: address) != nil
+        presence(for: address) != .absent
     }
 
     /// What is actually guarding the stored token, or `nil` if there isn't one.
@@ -176,13 +183,61 @@ nonisolated struct TokenStore: Sendable {
         return KeychainProtection(marker: marker) ?? .biometrics
     }
 
+    /// Whether a token is stored — and the difference between "no" and
+    /// "cannot tell right now", which are not the same answer.
+    nonisolated enum Presence: Equatable {
+        case present
+        case absent
+        /// The Keychain refused to say. The item may well be there.
+        case unknown(OSStatus)
+    }
+
+    /// Looks for the item without prompting for anything.
+    ///
+    /// **Only `errSecItemNotFound` proves absence.** An item stored
+    /// `WhenPasscodeSetThisDeviceOnly` behind an access control answers
+    /// `errSecInteractionNotAllowed` when it cannot be reached at that
+    /// moment — while the device is locked, or when the query is not allowed
+    /// to interact — and reading that as "there is no token" is how a
+    /// perfectly good credential comes to be reported missing.
+    func presence(for address: ServerAddress) -> Presence {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account(for: address),
+            kSecReturnAttributes as String: true,
+            // **Fail, not Skip.** `kSecUseAuthenticationUISkip` does not mean
+            // "answer without prompting" — it means an item that *would* need
+            // authentication is silently omitted from the results, which comes
+            // back as `errSecItemNotFound` and is indistinguishable from having
+            // no token at all. Every token this app stores is behind an access
+            // control, so Skip reported all of them missing on hardware where
+            // that control is `.biometryCurrentSet`.
+            //
+            // `Fail` returns `errSecInteractionNotAllowed` for exactly that
+            // case, which is the answer wanted: the item is there, it just
+            // cannot be handed over without asking someone first.
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
+        ]
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        switch status {
+        case errSecSuccess: return .present
+        case errSecItemNotFound: return .absent
+        default: return .unknown(status)
+        }
+    }
+
     private func attributes(for address: ServerAddress) -> [String: Any]? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account(for: address),
             kSecReturnAttributes as String: true,
-            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
+            // Same reasoning as `presence`: Skip hides the very items this is
+            // asked about. Attributes still come back under Fail, because
+            // reading them is not reading the secret.
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
         ]
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }

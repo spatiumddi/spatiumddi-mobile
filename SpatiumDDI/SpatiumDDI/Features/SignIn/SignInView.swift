@@ -9,6 +9,14 @@ struct SignInView: View {
     @State var model: SignInModel
     let onChangeServer: () -> Void
 
+    /// Why a token was expected here but not found, when that happened.
+    ///
+    /// Shown rather than swallowed: being asked to enrol again when you know
+    /// you already did is alarming, and an unexplained form gives the operator
+    /// nothing to report. The Keychain's own status code is the fact that
+    /// makes the difference between diagnosing this and guessing at it.
+    var absence: String?
+
     /// Whether the token is currently legible.
     ///
     /// Off by default, and reset whenever the app leaves the foreground — a
@@ -21,6 +29,20 @@ struct SignInView: View {
         NavigationStack {
             Form {
                 BrandHeader()
+
+                if let absence {
+                    Section {
+                        Label {
+                            Text(verbatim: absence)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                    } footer: {
+                        Text("Your stored token may still be on this device. Signing in again replaces it.")
+                    }
+                }
 
                 Section {
                     LabeledContent("Server") {

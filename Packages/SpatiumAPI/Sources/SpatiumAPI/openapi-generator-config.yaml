@@ -39,8 +39,10 @@ filter:
     - /api/v1/search
     - /api/v1/search/types
 
-    # Alerts.
+    # Alerts. Resolving is a separate path from the collection — filtering a
+    # collection never brings its sub-paths with it.
     - /api/v1/alerts/events
+    - /api/v1/alerts/events/{event_id}/resolve
 
     # IPAM: space → block → subnet → address.
     - /api/v1/ipam/spaces
@@ -86,9 +88,13 @@ filter:
     # AI configuration are all deliberately absent — a phone is a bad place to
     # run any of them.
 
-    # Approvals and requests.
+    # Approvals and requests. Deciding one is the best mobile write there is:
+    # the approver is the person most often away from a desk.
     - /api/v1/change-requests
     - /api/v1/change-requests/{cr_id}
+    - /api/v1/change-requests/{cr_id}/approve
+    - /api/v1/change-requests/{cr_id}/reject
+    - /api/v1/change-requests/{cr_id}/cancel
     - /api/v1/requests
 
     # Expiry tracking: the two things that page someone at an awkward hour.
@@ -112,8 +118,11 @@ filter:
     - /api/v1/sites
     - /api/v1/providers
 
-    # Security signal.
+    # Security signal. Acknowledging is in; blocking a MAC is deliberately
+    # not — it changes what that device gets from DHCP, and a mis-tap on a
+    # train has a blast radius this app should not hand out one-handed.
     - /api/v1/new-devices/sightings
+    - /api/v1/new-devices/sightings/{sighting_id}/acknowledge
     - /api/v1/new-devices/summary
 
     # Administration: who is in, what they hold, and what has been done.
@@ -135,6 +144,37 @@ filter:
     - /api/v1/dhcp/servers/{server_id}/recent-events
     - /api/v1/dns/servers/{server_id}/recent-events
     - /api/v1/logs/sources
+
+    # ── Diagnostics, run from the control plane ───────────────────────────
+    # The whole point is the vantage point: these answer "can the *server*
+    # reach it / resolve it", which is the question an operator standing in a
+    # rack cannot answer from the device in their hand. POST because the
+    # parameters are a body; only Wake-on-LAN changes anything, and what it
+    # changes is a power state.
+    #
+    # `target` on these requests selects which appliance runs the tool. The app
+    # always omits it, which means the control plane itself — adding a picker
+    # is worth doing only once a phone user has an appliance fleet to pick from.
+    - /api/v1/tools/ping
+    - /api/v1/tools/traceroute
+    - /api/v1/tools/mtr
+    - /api/v1/tools/dig
+    - /api/v1/tools/whois
+    - /api/v1/tools/port-test
+    - /api/v1/tools/tls-cert
+    - /api/v1/tools/mac-vendor
+    - /api/v1/tools/dns-propagation
+    - /api/v1/tools/wol
+    # Nmap. Started here, then polled — the server runs it, so the phone is
+    # only the thing that asked. `stream` (SSE) is deliberately not generated:
+    # a scan that takes a minute does not need a live feed on a phone, and
+    # polling survives the app being backgrounded, which a stream does not.
+    - /api/v1/nmap/scans
+    - /api/v1/nmap/scans/{scan_id}
+    - /api/v1/nmap/scans/{scan_id}/stamp-discovered
+
+    # Deliberately absent: /tools/firewall-logs (a desk-sized log search) and
+    # /pcap/* (a phone is a bad place to read a packet capture).
 
     # The DHCP and DNS protocol logs — the conversation itself, filterable by
     # MAC or client IP. These are POST because the filter is a body, not
