@@ -22,6 +22,8 @@ struct IPAMAddressDetailView: View {
     let session: ControlPlaneSession
     let address: Components.Schemas.IPAddressResponse
     let subnet: Components.Schemas.SubnetResponse
+    /// The space, block and subnet this address was reached through.
+    var trail: [String] = []
 
     @State private var state: LoadState<Components.Schemas.IPAddressResponse> = .idle
 
@@ -168,6 +170,7 @@ struct IPAMAddressDetailView: View {
             }
         }
         .navigationTitle(current.address)
+        .breadcrumbs(trail)
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }

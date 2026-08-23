@@ -104,6 +104,7 @@ struct SearchView: View {
         .searchable(
             text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "IP, name, MAC, zone"
         )
+        .dismissableKeyboard()
         .task { await fetchTypes() }
         .task(id: query) {
             guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {

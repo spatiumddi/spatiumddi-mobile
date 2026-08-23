@@ -98,6 +98,7 @@ struct ServerSetupView: View {
                 statusSection
             }
             .navigationTitle("")
+            .dismissableKeyboard()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if let onCancel {

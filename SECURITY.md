@@ -85,6 +85,30 @@ This is a deliberate trade against convenience. A stale-but-plausible lease tabl
 is worse than an error state, because an operator cannot tell that it is stale —
 and acting on it changes production networks.
 
+**What *is* written, and how it is protected.** Two things, and neither is
+response data: the Keychain items (one API token and one certificate pin per
+`host:port`), and a `UserDefaults` plist holding the configured servers — their
+host names, ports, and the operator's own labels for them.
+
+The plist is not a credential, but a list of internal control-plane host names is
+reconnaissance, and the iOS default for app-container files is
+`NSFileProtectionCompleteUntilFirstUserAuthentication` — readable from the first
+unlock after boot, which in practice means always. The app therefore carries the
+**Data Protection** entitlement at `NSFileProtectionComplete`, so those files are
+readable only while the device is unlocked.
+
+Two things this entitlement is *not*:
+
+* It does **not** protect the API token. That is a Keychain item under
+  `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` plus a `SecAccessControl`,
+  which is stronger and governed by the Keychain rather than by file protection.
+  Nothing about the token changes with this entitlement present or absent.
+* It is **not** free for future background work. Files at this class cannot be
+  read while the device is locked, so the Phase 3 push work — a notification
+  service extension, or any background launch — must not assume `UserDefaults`
+  is readable. The app has no background execution today and reads defaults only
+  once the scene is active.
+
 ### 4. Client-side permission gating is UX, not security
 
 The server enforces permissions independently. Hiding a button is a courtesy.

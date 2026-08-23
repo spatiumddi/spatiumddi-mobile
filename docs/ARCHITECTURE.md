@@ -170,6 +170,13 @@ the `ControlPlaneSession` and every screen's fetched rows with it. That is what
 keeps "nothing an inactive server returned may linger" true by construction
 rather than by remembering to clear things.
 
+The plist this writes is the only file the app container holds, and it is why
+the app carries the **Data Protection** entitlement
+(`com.apple.developer.default-data-protection = NSFileProtectionComplete`):
+internal control-plane host names should not be readable from a locked phone.
+See `SECURITY.md` §3 — in particular the constraint it places on Phase 3, since
+files at that class are unreadable while the device is locked.
+
 ### `Redaction`
 
 The only sanctioned way to log a request. `redact()`, `redactHeaderValue()` and

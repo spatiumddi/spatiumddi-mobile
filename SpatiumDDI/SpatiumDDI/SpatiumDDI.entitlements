@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Data Protection, at the strictest class.
+
+	  This does NOT touch the API token: that lives in the Keychain under
+	  kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly plus a SecAccessControl,
+	  which is already the strongest protection iOS offers and is governed by
+	  the Keychain, not by this entitlement.
+
+	  What it does cover is every file the app container holds — in practice the
+	  UserDefaults plist carrying the configured servers: internal host names,
+	  ports and the operator's labels for them. Without this they sit at the iOS
+	  default of NSFileProtectionCompleteUntilFirstUserAuthentication, meaning
+	  readable from the moment the device is first unlocked after boot, which is
+	  effectively always. With it they are readable only while the device is
+	  unlocked. For a self-hosted DDI operator, a list of internal control-plane
+	  host names is reconnaissance worth denying to a stolen, locked phone.
+
+	  The cost, for whoever builds Phase 3: files at this class are NOT readable
+	  while the device is locked, so a notification service extension or any
+	  background launch must not assume UserDefaults can be read. The app has no
+	  background execution today, and reads defaults only once the scene is
+	  active.
+	-->
+	<key>com.apple.developer.default-data-protection</key>
+	<string>NSFileProtectionComplete</string>
+</dict>
+</plist>

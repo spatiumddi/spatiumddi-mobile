@@ -105,6 +105,7 @@ struct DNSZonesView: View {
         .navigationTitle(group.name)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Filter zones")
+        .dismissableKeyboard()
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
     }
@@ -248,7 +249,11 @@ struct DNSZoneDetailView: View {
         }
         .navigationTitle(zone.name)
         .navigationBarTitleDisplayMode(.inline)
+        // Which group, not just which zone: with split horizon the same name
+        // exists in two of them and publishes to different resolvers.
+        .breadcrumbs([group.name])
         .searchable(text: $query, prompt: "Filter records")
+        .dismissableKeyboard()
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
         .toolbar {

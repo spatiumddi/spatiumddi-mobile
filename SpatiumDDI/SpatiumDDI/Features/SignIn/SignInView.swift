@@ -135,6 +135,7 @@ struct SignInView: View {
                 }
             }
             .navigationTitle("Sign In")
+            .dismissableKeyboard()
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { isTokenRevealed = false }
             }

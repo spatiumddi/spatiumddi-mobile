@@ -228,6 +228,7 @@ struct DHCPServerDetailView: View {
         .navigationTitle(server.name)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
+        .dismissableKeyboard()
         .refreshable { await refresh() }
         .task { if case .idle = stats { await refresh() } }
     }
@@ -356,7 +357,7 @@ struct DHCPScopesView: View {
             LoadStateView(state: state, emptyMessage: "This group has no scopes.", retry: load) { scopes in
                 ForEach(scopes, id: \.id) { scope in
                     NavigationLink {
-                        DHCPScopeDetailView(session: session, scope: scope)
+                        DHCPScopeDetailView(session: session, scope: scope, trail: [group.name])
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -409,6 +410,8 @@ struct DHCPScopesView: View {
 struct DHCPScopeDetailView: View {
     let session: ControlPlaneSession
     let scope: Components.Schemas.ScopeResponse
+    /// The server group this scope was reached through.
+    var trail: [String] = []
 
     @State private var subnet: Components.Schemas.SubnetResponse?
     @State private var pools: LoadState<[Components.Schemas.AppApiV1DhcpPoolsPoolResponse]> = .idle
@@ -489,6 +492,7 @@ struct DHCPScopeDetailView: View {
             }
         }
         .navigationTitle(scope.name ?? "Scope")
+        .breadcrumbs(trail)
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await refresh() }
         .task { if case .idle = pools { await refresh() } }

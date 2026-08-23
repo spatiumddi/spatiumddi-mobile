@@ -93,6 +93,7 @@ struct DHCPActivityView: View {
             }
         }
         .navigationTitle("DHCP Log")
+        .dismissableKeyboard()
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if let initialMAC, macFilter.isEmpty { macFilter = initialMAC }

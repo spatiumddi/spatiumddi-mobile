@@ -61,6 +61,7 @@ struct DomainsView: View {
         }
         .navigationTitle("Domains")
         .searchable(text: $query, prompt: "Filter domains")
+        .dismissableKeyboard()
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
     }
@@ -202,6 +203,7 @@ struct CertificatesView: View {
         }
         .navigationTitle("Certificates")
         .searchable(text: $query, prompt: "Filter by host or issuer")
+        .dismissableKeyboard()
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
     }

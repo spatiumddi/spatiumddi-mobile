@@ -181,6 +181,7 @@ struct RenameServerSheet: View {
                 }
             }
             .navigationTitle("Rename Server")
+            .dismissableKeyboard()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

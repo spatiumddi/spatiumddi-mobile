@@ -79,6 +79,9 @@
     "10" : {
       "extractionState" : "extracted_with_value"
     },
+    "10.0.1.0/24" : {
+      "extractionState" : "extracted_with_value"
+    },
     "10.0.1.42" : {
       "extractionState" : "extracted_with_value"
     },
@@ -527,6 +530,9 @@
       "extractionState" : "extracted_with_value"
     },
     "Info" : {
+      "extractionState" : "extracted_with_value"
+    },
+    "Inside" : {
       "extractionState" : "extracted_with_value"
     },
     "Issuer" : {

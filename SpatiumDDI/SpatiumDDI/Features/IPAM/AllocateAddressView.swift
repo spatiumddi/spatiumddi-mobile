@@ -89,6 +89,7 @@ struct AllocateAddressView: View {
                 }
             }
             .navigationTitle("Allocate Address")
+            .dismissableKeyboard()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

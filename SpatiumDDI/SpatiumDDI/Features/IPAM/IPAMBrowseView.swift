@@ -80,7 +80,7 @@ struct IPAMBlocksView: View {
             LoadStateView(state: state, emptyMessage: "This space has no blocks.", retry: load) { blocks in
                 ForEach(blocks, id: \.id) { block in
                     NavigationLink {
-                        IPAMSubnetsView(session: session, block: block)
+                        IPAMSubnetsView(session: session, block: block, trail: [space.name])
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(block.network).font(.body.monospaced())
@@ -137,6 +137,8 @@ struct IPAMBlocksView: View {
 struct IPAMSubnetsView: View {
     let session: ControlPlaneSession
     let block: Components.Schemas.IPBlockResponse
+    /// The space this block was reached through.
+    var trail: [String] = []
 
     @State private var state: LoadState<[Components.Schemas.SubnetResponse]> = .idle
 
@@ -145,7 +147,9 @@ struct IPAMSubnetsView: View {
             LoadStateView(state: state, emptyMessage: "This block has no subnets.", retry: load) { subnets in
                 ForEach(subnets, id: \.id) { subnet in
                     NavigationLink {
-                        IPAMAddressesView(session: session, subnet: subnet)
+                        IPAMAddressesView(
+                            session: session, subnet: subnet, trail: trail + [block.network]
+                        )
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -166,6 +170,7 @@ struct IPAMSubnetsView: View {
         }
         .navigationTitle(block.network)
         .navigationBarTitleDisplayMode(.inline)
+        .breadcrumbs(trail)
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
     }
@@ -194,6 +199,8 @@ struct IPAMSubnetsView: View {
 struct IPAMAddressesView: View {
     let session: ControlPlaneSession
     let subnet: Components.Schemas.SubnetResponse
+    /// The space and block this subnet was reached through.
+    var trail: [String] = []
 
     @State private var state: LoadState<[Components.Schemas.IPAddressResponse]> = .idle
     @State private var query = ""
@@ -236,7 +243,12 @@ struct IPAMAddressesView: View {
                     } else {
                         ForEach(visible, id: \.id) { address in
                             NavigationLink {
-                                IPAMAddressDetailView(session: session, address: address, subnet: subnet)
+                                IPAMAddressDetailView(
+                                    session: session,
+                                    address: address,
+                                    subnet: subnet,
+                                    trail: trail + [subnet.network]
+                                )
                             } label: {
                                 AddressRow(address: address)
                             }
@@ -247,7 +259,9 @@ struct IPAMAddressesView: View {
         }
         .navigationTitle(subnet.name.isEmpty ? subnet.network : subnet.name)
         .navigationBarTitleDisplayMode(.inline)
+        .breadcrumbs(trail)
         .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
+        .dismissableKeyboard()
         .refreshable { await fetch() }
         .task { if case .idle = state { await fetch() } }
         .toolbar {

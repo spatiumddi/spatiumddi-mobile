@@ -121,6 +121,7 @@ struct ClientLookupView: View {
             }
         }
         .navigationTitle("Client Lookup")
+        .dismissableKeyboard()
     }
 
     private func search() async {

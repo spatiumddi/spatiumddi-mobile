@@ -93,6 +93,7 @@ struct CreateRecordView: View {
                 }
             }
             .navigationTitle("New Record")
+            .dismissableKeyboard()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
