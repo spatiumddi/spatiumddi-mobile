@@ -23,15 +23,15 @@ import SwiftUI
 nonisolated struct StaleAddress: Decodable, Identifiable, Sendable {
     let id: String
     let address: String
-    var status: String?
-    var hostname: String?
-    var macAddress: String?
+    let status: String?
+    let hostname: String?
+    let macAddress: String?
     /// Days since anything last saw it. **Null means never seen at all**, which
     /// is a different and worse answer than "seen a long time ago".
-    var daysStale: Int?
-    var lastSeenMethod: String?
-    var subnetNetwork: String?
-    var subnetName: String?
+    let daysStale: Int?
+    let lastSeenMethod: String?
+    let subnetNetwork: String?
+    let subnetName: String?
 
     enum CodingKeys: String, CodingKey {
         case id, address, status, hostname
@@ -45,9 +45,13 @@ nonisolated struct StaleAddress: Decodable, Identifiable, Sendable {
 
 /// The report as a whole.
 nonisolated struct StaleAddressReport: Decodable, Sendable {
-    var total: Int
-    var staleDays: Int
-    var entries: [StaleAddress]
+    /// Optional for the same reason the row's fields are: the envelope is
+    /// untyped too, so a renamed key here would otherwise throw and take every
+    /// row down with it — a screen full of usable findings replaced by an
+    /// error banner, which is the failure this type is meant to avoid.
+    let total: Int?
+    let staleDays: Int?
+    let entries: [StaleAddress]
 
     enum CodingKeys: String, CodingKey {
         case total
@@ -64,17 +68,10 @@ nonisolated struct StaleAddressReport: Decodable, Sendable {
     /// of a decode error somebody notices.
     ///
     /// Takes `some Encodable` rather than naming the generated payload type,
-    /// which keeps this free of both a 90-character type name and an import of
-    /// the OpenAPI runtime the app target does not otherwise need.
+    /// which keeps a 90-character type name out of the signature.
     init(encoded payload: some Encodable) throws {
         let data = try JSONEncoder().encode(payload)
         self = try JSONDecoder().decode(StaleAddressReport.self, from: data)
-    }
-
-    init(total: Int, staleDays: Int, entries: [StaleAddress]) {
-        self.total = total
-        self.staleDays = staleDays
-        self.entries = entries
     }
 }
 
@@ -100,8 +97,23 @@ struct StaleAddressesView: View {
     @State private var isConfirming = false
     @State private var isDeprecating = false
     @State private var outcome: FailureMessage?
+    /// Whether `outcome` is a receipt or a refusal. One slot rendered one way
+    /// showed a maintenance-mode 503 with the same neutral glyph as a
+    /// completed write — non-negotiables #4 and #5 both want the difference.
+    @State private var outcomeIsFailure = false
 
     private var mayDeprecate: Bool { permissions.canWrite("ip_address") }
+
+    /// The report's rows as their own `LoadState`, so `LoadStateView` can tell
+    /// "loaded and empty" from "loaded".
+    private var entriesState: LoadState<[StaleAddress]> {
+        switch state {
+        case .idle: .idle
+        case .loading: .loading
+        case .loaded(let report): .loaded(report.entries)
+        case .failed(let message): .failed(message)
+        }
+    }
 
     var body: some View {
         List {
@@ -124,33 +136,34 @@ struct StaleAddressesView: View {
             }
 
             Section {
+                // The rows rather than the whole report, so `emptyMessage`
+                // actually fires: `LoadStateView` tests the value for an empty
+                // `Collection`, and a report struct is never one. The total is
+                // read from `state` in the header instead.
                 LoadStateView(
-                    state: state,
+                    state: entriesState,
                     emptyMessage: "Nothing has gone stale in this window.",
                     retry: { Task { await fetch() } }
-                ) { report in
-                    if report.entries.isEmpty {
-                        Text("Nothing has gone stale in this window.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(report.entries) { entry in
-                            StaleAddressRow(
-                                entry: entry,
-                                isSelected: selection.contains(entry.id),
-                                isSelectable: mayDeprecate
-                            ) {
-                                if selection.contains(entry.id) {
-                                    selection.remove(entry.id)
-                                } else {
-                                    selection.insert(entry.id)
-                                }
+                ) { entries in
+                    ForEach(entries) { entry in
+                        StaleAddressRow(
+                            entry: entry,
+                            isSelected: selection.contains(entry.id),
+                            isSelectable: mayDeprecate
+                        ) {
+                            if selection.contains(entry.id) {
+                                selection.remove(entry.id)
+                            } else {
+                                selection.insert(entry.id)
                             }
                         }
                     }
                 }
             } header: {
-                if case .loaded(let report) = state, report.total > report.entries.count {
-                    Text("Stale — showing \(report.entries.count) of \(report.total)")
+                if case .loaded(let report) = state, let total = report.total,
+                    total > report.entries.count
+                {
+                    Text("Stale — showing \(report.entries.count) of \(total)")
                 } else {
                     Text("Stale")
                 }
@@ -162,14 +175,28 @@ struct StaleAddressesView: View {
 
             if let outcome {
                 Section("Result") {
-                    Label(outcome, systemImage: "info.circle.fill")
+                    Label(
+                        outcome,
+                        systemImage: outcomeIsFailure
+                            ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+                    )
+                    .foregroundStyle(outcomeIsFailure ? Color.red : Color.primary)
                 }
             }
         }
         .navigationTitle("Stale Addresses")
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await fetch() }
-        .task(id: [staleDays, includeNeverSeen ? 1 : 0]) { await fetch() }
+        .refreshable {
+            outcome = nil
+            await fetch()
+        }
+        // Clearing `outcome` here and not inside `fetch()`: the post-write
+        // refetch calls `fetch()` too, and it must not wipe the receipt it
+        // was just given.
+        .task(id: [staleDays, includeNeverSeen ? 1 : 0]) {
+            outcome = nil
+            await fetch()
+        }
         .toolbar {
             if mayDeprecate, !selection.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
@@ -200,10 +227,13 @@ struct StaleAddressesView: View {
         if selected.count > lines.count {
             lines.append(String(localized: "…and ^[\(selected.count - lines.count) more](inflect: true)"))
         }
+        // No backticks: this reaches the alert through `Text(verbatim:)`,
+        // which parses nothing, so they would be shown to the operator as
+        // literal characters.
         lines.append(
             String(
                 localized:
-                    "Each becomes `deprecated`. The row and its history stay, and it stops counting as allocated."
+                    "Each is marked deprecated. The row and its history stay, and it stops counting as allocated."
             )
         )
         return lines.joined(separator: "\n")
@@ -241,8 +271,20 @@ struct StaleAddressesView: View {
                     // for instance. Saying how many were skipped stops the
                     // count reading as a failure of the whole action.
                     text += " "
-                    text += String(localized: "^[\(skipped.count) was](inflect: true) skipped.")
+                    text += String(
+                        localized: "^[\(skipped.count) address](inflect: true) skipped.")
                 }
+                if result.capped == true {
+                    // Never report a truncated write as a finished one: the
+                    // rows the server dropped are still allocated, and the
+                    // count alone reads as though they were dealt with.
+                    text += " "
+                    text += String(
+                        localized:
+                            "The server capped this batch, so some selected addresses were not deprecated."
+                    )
+                }
+                outcomeIsFailure = false
                 outcome = .app("\(text)")
                 await fetch()
             case .unprocessableContent: throw APIStatusError(status: 422)
@@ -250,7 +292,11 @@ struct StaleAddressesView: View {
                 throw await APIStatusError(status: statusCode, payload: payload)
             }
         } catch {
+            // `forced: true` means `classify` can only answer `.failed` —
+            // the `.confirmable` branch is gated on `!forced` — so nothing is
+            // being dropped here.
             if case .failed(let message) = await WriteFailure.classify(error, forced: true) {
+                outcomeIsFailure = true
                 outcome = message
             }
         }
@@ -258,8 +304,7 @@ struct StaleAddressesView: View {
 
     private func fetch() async {
         state = .loading
-        selection = []
-        state = await LoadState.fetching {
+        let next = await LoadState.fetching {
             let response = try await session.client.getStaleIpReportApiV1IpamReportsStaleIpsGet(
                 query: .init(
                     staleDays: staleDays,
@@ -275,6 +320,22 @@ struct StaleAddressesView: View {
                 throw await APIStatusError(status: statusCode, payload: payload)
             }
         }
+
+        // A superseded task must not write. `LoadState.fetching` answers
+        // `.idle` for a cancelled fetch, and assigning that would both clobber
+        // the newer task's state and re-arm `LoadStateView`'s idle branch,
+        // which starts a fetch of its own.
+        guard !Task.isCancelled else { return }
+        state = next
+
+        // Keep the selection across a refresh rather than discarding the
+        // operator's taps, but drop anything the new report no longer lists so
+        // a ghost id cannot reach `deprecate()`.
+        if case .loaded(let report) = next {
+            selection.formIntersection(report.entries.map(\.id))
+        } else {
+            selection = []
+        }
     }
 }
 
@@ -285,45 +346,53 @@ private struct StaleAddressRow: View {
     let toggle: () -> Void
 
     var body: some View {
-        Button(action: toggle) {
-            HStack(spacing: 10) {
-                if isSelectable {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+        // A button only when there is something to toggle. `.disabled` on the
+        // row instead would dim the address, hostname and MAC of every row for
+        // a read-only operator and mark each one `notEnabled` to VoiceOver —
+        // presenting a perfectly readable report as unavailable.
+        if isSelectable {
+            Button(action: toggle) { content }.buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        HStack(spacing: 10) {
+            if isSelectable {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text(verbatim: entry.address).font(.body.monospaced())
+                    Spacer()
+                    if let status = entry.status {
+                        Badge(text: status, tint: .secondary)
+                    }
                 }
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack {
-                        Text(entry.address).font(.body.monospaced())
-                        Spacer()
-                        if let status = entry.status {
-                            Badge(text: status, tint: .secondary)
-                        }
-                    }
-                    if let hostname = entry.hostname, !hostname.isEmpty {
-                        Text(verbatim: hostname).font(.caption).foregroundStyle(.secondary)
-                    }
-                    HStack(spacing: 8) {
-                        // Null days is the "never seen" case, and it needs its
-                        // own words: "0 days stale" would be the exact opposite
-                        // of what it means.
-                        if let days = entry.daysStale {
-                            Text("^[\(days) day](inflect: true) stale")
-                        } else {
-                            Text("never seen")
-                        }
-                        if let network = entry.subnetName ?? entry.subnetNetwork {
-                            Text(verbatim: network)
-                        }
-                        if let mac = entry.macAddress, !mac.isEmpty {
-                            Text(verbatim: mac)
-                        }
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                if let hostname = entry.hostname, !hostname.isEmpty {
+                    Text(verbatim: hostname).font(.caption).foregroundStyle(.secondary)
                 }
+                HStack(spacing: 8) {
+                    // Null days is the "never seen" case, and it needs its
+                    // own words: "0 days stale" would be the exact opposite
+                    // of what it means.
+                    if let days = entry.daysStale {
+                        Text("^[\(days) day](inflect: true) stale")
+                    } else {
+                        Text("never seen")
+                    }
+                    if let network = entry.subnetName ?? entry.subnetNetwork {
+                        Text(verbatim: network)
+                    }
+                    if let mac = entry.macAddress, !mac.isEmpty {
+                        Text(verbatim: mac)
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
             }
         }
-        .buttonStyle(.plain)
-        .disabled(!isSelectable)
     }
 }

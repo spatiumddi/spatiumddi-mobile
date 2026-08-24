@@ -118,6 +118,12 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         // domain tracking is always on. Naming a module the server does not
         // have would hide the screen permanently, because the gate only fails
         // open while the module list is unknown.
+        //
+        // Integrations deliberately absent too, for the opposite reason: the
+        // modules are per-integration (`integrations.unifi`, `.netbox`, and so
+        // on), so there is no one id to name — and the summary endpoint is
+        // ungated and reports each panel's own `enabled`, which the screen
+        // filters on. The gate is one layer down, not missing.
         case .changeRequests: "governance.approvals"
         case .newDevices: "security.new_device_watch"
         case .certificates: "security.tls_certs"

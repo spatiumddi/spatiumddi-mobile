@@ -108,12 +108,100 @@ struct StaleAddressTests {
     }
 
     /// A row with no id or no address is not a row. It must fail loudly rather
-    /// than decode into something the deprecate action would then send.
-    @Test("A row missing its identity is a decode failure, not a blank row")
-    func missingIdentityThrows() {
+    /// than decode into something the deprecate action would then send — a
+    /// blank address would be confirmed as an empty line in the deprecate
+    /// alert while its id was posted anyway.
+    @Test(
+        "A row missing its identity is a decode failure, not a blank row",
+        arguments: [
+            #"{"address": "10.0.0.1"}"#,
+            #"{"id": "a"}"#,
+        ])
+    func missingIdentityThrows(_ row: String) {
+        #expect(throws: (any Error).self) {
+            try decode(#"{"total": 1, "stale_days": 90, "entries": [\#(row)]}"#)
+        }
+    }
+
+    /// The envelope is untyped too, so a renamed `total` or `stale_days` must
+    /// cost the header, not the report. Requiring them turned a screen full of
+    /// usable findings into an error banner.
+    @Test("A renamed envelope key costs the header, not the rows")
+    func toleratesRenamedEnvelopeKeys() throws {
         let json = """
-            {"total": 1, "stale_days": 90, "entries": [{"address": "10.0.0.1"}]}
+            {"staleDays": 90, "rowCount": 1, "entries": [{"id": "a", "address": "10.0.0.1"}]}
             """
-        #expect(throws: (any Error).self) { try decode(json) }
+        let report = try decode(json)
+        #expect(report.total == nil)
+        #expect(report.staleDays == nil)
+        #expect(report.entries.count == 1)
+    }
+
+    /// The path the app actually takes.
+    ///
+    /// Every other test here decodes a raw string, which the app never does —
+    /// it hands `init(encoded:)` the generated client's untyped payload, and
+    /// re-encoding that container is where a number can come back as a
+    /// `Double` and fail an `Int`, or a null can be dropped rather than kept.
+    /// `UntypedJSON` stands in for the container: same Codable round trip,
+    /// same loss of the original bytes.
+    @Test("The re-encode round trip preserves what the rows turn on")
+    func roundTripThroughAnUntypedPayload() throws {
+        let payload = try JSONDecoder().decode(UntypedJSON.self, from: Data(Self.live.utf8))
+        let report = try StaleAddressReport(encoded: payload)
+        #expect(report.total == 43)
+        #expect(report.staleDays == 1)
+        #expect(report.entries.count == 1)
+
+        let entry = try #require(report.entries.first)
+        #expect(entry.address == "10.1.0.2")
+        #expect(entry.macAddress == "8c:7d:72:47:34:2c")
+        // The distinction the screen turns on, carried across the one layer
+        // that could quietly turn it into zero.
+        #expect(entry.daysStale == nil)
+    }
+}
+
+/// A JSON value with no schema, re-encodable — the shape the generated client
+/// hands back for an endpoint the document types as a bare `object`.
+private enum UntypedJSON: Codable {
+    case null
+    case bool(Bool)
+    case int(Int)
+    case double(Double)
+    case string(String)
+    case array([UntypedJSON])
+    case object([String: UntypedJSON])
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let value = try? container.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? container.decode(Int.self) {
+            self = .int(value)
+        } else if let value = try? container.decode(Double.self) {
+            self = .double(value)
+        } else if let value = try? container.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? container.decode([UntypedJSON].self) {
+            self = .array(value)
+        } else {
+            self = .object(try container.decode([String: UntypedJSON].self))
+        }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null: try container.encodeNil()
+        case .bool(let value): try container.encode(value)
+        case .int(let value): try container.encode(value)
+        case .double(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        }
     }
 }

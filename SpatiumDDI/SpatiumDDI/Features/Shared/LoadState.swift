@@ -69,6 +69,38 @@ struct LoadStateView<Value, Content: View>: View {
     }
 }
 
+/// One KPI: a number and what it counts.
+///
+/// An unknown value renders as a dash and keeps its tile, rather than the tile
+/// disappearing. A missing tile reads as "this platform has no such thing";
+/// a dash reads as "this number could not be established", which is what
+/// actually happened.
+struct CountTile: View {
+    let value: Int?
+    let label: LocalizedStringResource
+    let tint: Color
+
+    private var text: String { value?.formatted() ?? "—" }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(text)
+                .font(.title2.weight(.semibold).monospacedDigit())
+                .foregroundStyle(value == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(tint))
+                .contentTransition(.numericText())
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            value.map { "\($0) \(String(localized: label))" } ?? "\(String(localized: label)) unavailable")
+    }
+}
+
 /// A utilisation bar sized to the value it reports.
 struct UtilisationBar: View {
     let percent: Double

@@ -17,10 +17,19 @@ struct LookingGlassView: View {
     let session: ControlPlaneSession
 
     /// What the operator is asking about.
-    enum Mode: String, CaseIterable, Identifiable {
-        case address = "This IP"
-        case prefix = "This prefix"
+    enum Mode: CaseIterable, Identifiable {
+        case address
+        case prefix
         var id: Self { self }
+
+        /// Separate from the case so the two words an operator actually reads
+        /// reach the string catalogue. As a raw value they never would.
+        var label: LocalizedStringResource {
+            switch self {
+            case .address: "This IP"
+            case .prefix: "This prefix"
+            }
+        }
     }
 
     @State private var mode: Mode = .address
@@ -35,21 +44,28 @@ struct LookingGlassView: View {
     var body: some View {
         List {
             Section {
-                switch summary {
-                case .idle, .loading:
-                    ProgressView().frame(maxWidth: .infinity)
-                case .loaded(let summary):
+                // `LoadStateView` rather than a hand-rolled switch: it carries
+                // the retry button and the `.idle` branch that recovers a
+                // cancelled refresh. The peers section below already uses it.
+                LoadStateView(
+                    state: summary,
+                    emptyMessage: "No collectors are reporting.",
+                    retry: { Task { await fetchSummary() } }
+                ) { summary in
                     HStack(spacing: 10) {
-                        PeerTile(
+                        CountTile(
                             value: summary.peersEstablished, label: "Established", tint: .green)
-                        PeerTile(
+                        CountTile(
                             value: summary.peersDown,
                             label: "Down",
                             tint: summary.peersDown > 0 ? .red : .secondary
                         )
-                        PeerTile(
+                        // Counts routes, not peers, so it says so — three
+                        // identically-shaped tiles under a "Peers" header
+                        // otherwise read as three counts of the same thing.
+                        CountTile(
                             value: summary.routesRpkiInvalid,
-                            label: "RPKI invalid",
+                            label: "Routes RPKI invalid",
                             tint: summary.routesRpkiInvalid > 0 ? .orange : .secondary
                         )
                     }
@@ -66,9 +82,6 @@ struct LookingGlassView: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                     }
-                case .failed(let message):
-                    Label(message, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
                 }
             } header: {
                 Text("Peers")
@@ -78,7 +91,7 @@ struct LookingGlassView: View {
 
             Section {
                 Picker("Look up", selection: $mode) {
-                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(Mode.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .listRowInsets(.init(top: 6, leading: 12, bottom: 6, trailing: 12))
@@ -93,7 +106,10 @@ struct LookingGlassView: View {
 
                 ToolRunButton(
                     title: "Look Up",
-                    isRunning: forIP.isRunning || forPrefix.isRunning,
+                    // The mode on screen, not either mode: a slow lookup left
+                    // running in the other one would otherwise spin and
+                    // disable a button above a result section that is idle.
+                    isRunning: isRunning,
                     isEnabled: !trimmed.isEmpty,
                     action: start
                 )
@@ -116,9 +132,15 @@ struct LookingGlassView: View {
                 ToolResultSection(run: forIP, idleMessage: "Enter an address to see what routes it.") {
                     result in
                     if result.found, let route = result.route {
+                        // Says which address this answers. The field is free
+                        // to change under a result that stays on screen, and a
+                        // covering prefix looks plausible for the wrong IP.
+                        LabeledContent("For") {
+                            Text(verbatim: result.ip).font(.caption.monospaced())
+                        }
                         RouteDetail(route: route)
                         if let alternates = result.alternatePathsCount, alternates > 0 {
-                            Text("^[\(alternates) alternate path](inflect: true) exists.")
+                            Text("^[\(alternates) alternate path](inflect: true) available.")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
@@ -126,10 +148,15 @@ struct LookingGlassView: View {
                         // Not an error. No route for an address is a finding,
                         // and often the finding — it is why the thing is
                         // unreachable.
-                        Label(
-                            "No collector has a route covering \(result.ip).",
-                            systemImage: "questionmark.circle"
-                        )
+                        // `Text(verbatim:)` for the address: a literal with
+                        // an interpolation binds to `LocalizedStringKey`,
+                        // which Markdown-parses its arguments. Interpolating a
+                        // `Text` leaves the server's value unparsed.
+                        Label {
+                            Text("No collector has a route covering \(Text(verbatim: result.ip)).")
+                        } icon: {
+                            Image(systemName: "questionmark.circle")
+                        }
                         .foregroundStyle(.orange)
                     }
                 }
@@ -162,9 +189,15 @@ struct LookingGlassView: View {
         .task { if case .idle = summary { await refresh() } }
     }
 
+    /// Whether the mode on screen has a lookup in flight.
+    private var isRunning: Bool { mode == .address ? forIP.isRunning : forPrefix.isRunning }
+
     private func start() {
         let target = trimmed
-        guard !target.isEmpty else { return }
+        // `.onSubmit` reaches here too, so the guard lives here rather than
+        // only on the button — otherwise the keyboard fires the lookup the
+        // button is refusing.
+        guard !target.isEmpty, !isRunning else { return }
         dismissKeyboard()
         switch mode {
         case .address:
@@ -220,9 +253,10 @@ struct LookingGlassView: View {
             case .ok(let ok):
                 return try ok.body.json.sorted {
                     // Anything not established first: on a screen about
-                    // reachability, the broken session is the one to see.
-                    ($0.sessionState.lowercased() == "established" ? 1 : 0, $0.name)
-                        < ($1.sessionState.lowercased() == "established" ? 1 : 0, $1.name)
+                    // reachability, the broken session is the one to see. A
+                    // peer somebody switched off is not broken, so it sorts
+                    // with the healthy ones rather than heading the list.
+                    (isPeerDown($0) ? 0 : 1, $0.name) < (isPeerDown($1) ? 0 : 1, $1.name)
                 }
             case .unprocessableContent: throw APIStatusError(status: 422)
             case .undocumented(let statusCode, let payload):
@@ -232,23 +266,12 @@ struct LookingGlassView: View {
     }
 }
 
-private struct PeerTile: View {
-    let value: Int
-    let label: LocalizedStringResource
-    let tint: Color
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(value.formatted())
-                .font(.title2.weight(.semibold).monospacedDigit())
-                .foregroundStyle(tint)
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-        .accessibilityElement(children: .combine)
-    }
+/// A session that should be up and is not.
+///
+/// `session_state` alone is not the answer: a disabled peer is never brought
+/// up, so it reports `idle` — which is expected, not a fault.
+private nonisolated func isPeerDown(_ peer: Components.Schemas.PeerRead) -> Bool {
+    peer.enabled && peer.sessionState.lowercased() != "established"
 }
 
 private struct RouteDetail: View {
@@ -257,7 +280,7 @@ private struct RouteDetail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(route.prefix).font(.body.monospaced())
+                Text(verbatim: route.prefix).font(.body.monospaced())
                 Spacer()
                 if route.isBest { Badge(localised: "best", tint: .green) }
                 RPKIBadge(status: route.rpkiStatus)
@@ -322,22 +345,32 @@ private struct PeerRow: View {
     let peer: Components.Schemas.PeerRead
 
     private var isEstablished: Bool { peer.sessionState.lowercased() == "established" }
+    /// Red is for a session that should be up and is not. A disabled peer
+    /// reports `idle` by design, and painting that red reads as a fault.
+    private var isDown: Bool { isPeerDown(peer) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
-                Text(peer.name)
+                Text(verbatim: peer.name)
                 Spacer()
                 if !peer.enabled { Badge(localised: "disabled", tint: .secondary) }
-                Badge(text: peer.sessionState, tint: isEstablished ? .green : .red)
+                Badge(
+                    text: peer.sessionState,
+                    tint: isEstablished ? .green : (isDown ? .red : .secondary))
             }
-            Text("\(peer.peerAddress) · AS\(String(peer.peerAsn))")
+            // `Text(verbatim:)`, not a literal with an interpolation: that
+            // binds to `LocalizedStringKey`, which Markdown-parses its
+            // arguments — so a peer address could carry a tappable link.
+            Text(verbatim: "\(peer.peerAddress) · AS\(peer.peerAsn)")
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 Text("^[\(peer.prefixesAccepted) prefix](inflect: true) accepted")
                 if peer.rpkiInvalidCount > 0 {
-                    Text("^[\(peer.rpkiInvalidCount) RPKI invalid](inflect: true)")
+                    // "route" is the head noun, so it is what pluralises —
+                    // inflecting "invalid" gives "3 RPKI invalids".
+                    Text("^[\(peer.rpkiInvalidCount) RPKI-invalid route](inflect: true)")
                 }
                 if let down = peer.downSince {
                     Text("down since \(down.formatted(.relative(presentation: .named)))")
