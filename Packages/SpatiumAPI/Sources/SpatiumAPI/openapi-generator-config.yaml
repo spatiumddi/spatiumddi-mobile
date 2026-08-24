@@ -25,6 +25,12 @@ filter:
     # Platform state — version handshake and the health/maintenance banner.
     - /api/v1/version
     - /health/platform
+    # Reading and writing the maintenance window (spatiumddi-mobile#11). There
+    # is no dedicated maintenance endpoint — the flag lives in the settings
+    # document, and `SettingsUpdate` is all-optional, so sending the two
+    # maintenance fields leaves the other 127 alone. The banner keeps reading
+    # /health/platform, which needs neither auth nor this grant.
+    - /api/v1/settings
 
     # Identity and client-side permission gating (UX only — see #4).
     - /api/v1/auth/me
@@ -58,6 +64,18 @@ filter:
     # POST wins, so the allocate sheet says so and handles losing the race.
     - /api/v1/ipam/subnets/{subnet_id}/next-ip-preview
     - /api/v1/reports/top-subnets-by-utilization
+    # Is this subnet filling up, or was it always like this — the triage
+    # question a single utilisation number cannot answer (#15).
+    - /api/v1/ipam/subnets/{subnet_id}/utilization-history
+
+    # Traffic over time, and the Top-N cards the web console leads with (#15).
+    # Both time-series take a window and an optional server; the reports take
+    # nothing and are gated on the `reports.top_n` module.
+    - /api/v1/metrics/dns/timeseries
+    - /api/v1/metrics/dhcp/timeseries
+    - /api/v1/reports/top-dns-clients
+    - /api/v1/reports/top-modified-resources
+    - /api/v1/reports/top-owners-by-ip-count
 
     # DNS: group → zone → record.
     - /api/v1/dns/groups
@@ -81,6 +99,16 @@ filter:
     - /api/v1/dhcp/scopes/{scope_id}
     - /api/v1/dhcp/scopes/{scope_id}/pools
     - /api/v1/dhcp/scopes/{scope_id}/statics
+    # The rack-side write: this MAC gets this IP, with the MAC on a label in
+    # front of you (spatiumddi-mobile#18). POST is on the collection above;
+    # the item path carries the delete.
+    - /api/v1/dhcp/statics/{static_id}
+    # Deleting a lease, from the row that shows it.
+    - /api/v1/dhcp/servers/{server_id}/leases/{lease_id}
+    # Blocking a MAC at DHCP. An availability decision about a device you may
+    # be misreading, so it is typed-gated in the app like a delete is.
+    - /api/v1/dhcp/server-groups/{group_id}/mac-blocks
+    - /api/v1/dhcp/mac-blocks/{block_id}
 
     # ── Operator-relevant surfaces beyond Phase 1's core ──────────────────
     # Read-only, and chosen against one test: does an operator away from a desk
@@ -118,6 +146,35 @@ filter:
     - /api/v1/sites
     - /api/v1/providers
 
+    # ── The read-only remainder, ranked by mobile fit (#17) ───────────────
+    # Four of that issue's five strong-fit surfaces. Platform Insights is the
+    # fifth and is **not here**: the 2026.08.22-1 document has no endpoint for
+    # it, so it stays unbuilt rather than guessed at.
+
+    # What rotted, and one bulk action to mark it. The report is `object` in
+    # the document — untyped — so the app decodes the rows it needs by hand
+    # from the container rather than pretending to a schema the server did
+    # not publish.
+    - /api/v1/ipam/reports/stale-ips
+    - /api/v1/ipam/reports/stale-ips/deprecate
+
+    # "What does this translate to", answered from an address rather than
+    # browsed as a table.
+    - /api/v1/ipam/nat-mappings
+    - /api/v1/ipam/nat-mappings/by-ip/{ip_address_id}
+
+    # Looking Glass: route-for-this-IP and route-for-this-prefix as an action
+    # from an address or subnet, plus peer health. Full route-table browsing
+    # stays desktop — `/routes` is deliberately not listed.
+    - /api/v1/looking-glass/routes/for-ip
+    - /api/v1/looking-glass/routes/by-prefix
+    - /api/v1/looking-glass/peers
+    - /api/v1/looking-glass/dashboard-summary
+
+    # Did the UniFi sync break — a from-the-couch question. The tiles, not the
+    # configuration forms behind them.
+    - /api/v1/dashboards/integrations/summary
+
     # Security signal. Acknowledging is in; blocking a MAC is deliberately
     # not — it changes what that device gets from DHCP, and a mis-tap on a
     # train has a blast radius this app should not hand out one-handed.
@@ -129,6 +186,11 @@ filter:
     - /api/v1/users
     - /api/v1/sessions
     - /api/v1/api-tokens
+    # Revoking a lost device's credential from whatever device is still in
+    # hand (spatiumddi-mobile#13). Item paths, not the collections above —
+    # filtering a collection never brings its sub-paths with it.
+    - /api/v1/sessions/{session_id}
+    - /api/v1/api-tokens/{token_id}
     - /api/v1/audit
     - /api/v1/admin/trash
 
@@ -144,6 +206,22 @@ filter:
     - /api/v1/dhcp/servers/{server_id}/recent-events
     - /api/v1/dns/servers/{server_id}/recent-events
     - /api/v1/logs/sources
+
+    # ── Where is this MAC ─────────────────────────────────────────────────
+    # The `network.device` module polls switches over SNMP, so the platform
+    # already knows which port learned a MAC (spatiumddi-mobile#16). Read-only
+    # plus `poll-now`, which refreshes what was learned and mutates nothing —
+    # "poll it again while I watch the port LED" is the on-site loop.
+    #
+    # Device CRUD, SNMP credentials and CSV import are deliberately absent:
+    # configuring the poller is desk work, consuming what it learned is not.
+    - /api/v1/network-devices
+    - /api/v1/network-devices/{device_id}
+    - /api/v1/network-devices/{device_id}/interfaces
+    - /api/v1/network-devices/{device_id}/arp
+    - /api/v1/network-devices/{device_id}/fdb
+    - /api/v1/network-devices/{device_id}/neighbours
+    - /api/v1/network-devices/{device_id}/poll-now
 
     # ── Diagnostics, run from the control plane ───────────────────────────
     # The whole point is the vantage point: these answer "can the *server*

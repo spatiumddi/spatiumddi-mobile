@@ -290,7 +290,10 @@ struct SignedInView: View {
         case .ownership:
             OwnershipView(session: session)
         case .access:
-            AccessView(session: session)
+            // The sign-out path is the same one a server-side rejection takes:
+            // revoking this device's own token *is* the server rejecting it,
+            // one request early.
+            AccessView(session: session, onSelfRevoked: onSessionRejected)
         case .audit:
             AuditLogView(session: session)
         case .trash:
@@ -364,6 +367,11 @@ struct ServerDetailView: View {
             } footer: {
                 if let caveat = protection?.caveat { Text(caveat) }
             }
+
+            MaintenanceSection(
+                session: session,
+                serverName: server.trimmedLabel ?? address.displayName
+            )
 
             Section("Signed in as") {
                 LoadStateView(

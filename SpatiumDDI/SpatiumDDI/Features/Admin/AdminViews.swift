@@ -191,13 +191,99 @@ struct NewDevicesView: View {
     }
 }
 
-/// Who can sign in, who is signed in, and what tokens exist.
+/// A credential the operator has asked to revoke.
+///
+/// One type for both kinds because the sheet is the same shape either way and
+/// only the sentence differs — and that sentence is the part that has to be
+/// right, so each is written once here rather than assembled at three call
+/// sites.
+private enum RevocationTarget: Identifiable {
+    /// An API token. `isThisDevice` is what stops the operator killing the
+    /// credential they are standing on without being told.
+    case token(Components.Schemas.ApiTokenResponse, isThisDevice: Bool)
+    case session(Components.Schemas.SessionRow)
+
+    var id: String {
+        switch self {
+        case .token(let token, _): "token-\(token.id)"
+        case .session(let row): "session-\(row.id)"
+        }
+    }
+
+    /// What the operator types to prove they meant it.
+    var subject: String {
+        switch self {
+        case .token(let token, _): token.name
+        case .session(let row): row.username
+        }
+    }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .token(_, isThisDevice: true): "Revoke this device's own token?"
+        case .token(_, isThisDevice: false): "Revoke this token?"
+        case .session: "Revoke this session?"
+        }
+    }
+
+    /// What happens, stated as fact. Never "are you sure".
+    var consequence: LocalizedStringResource {
+        switch self {
+        case .token(_, isThisDevice: true):
+            """
+            This is the token this app is signed in with. Revoking it signs \
+            you out on this device immediately — sign in again to mint a \
+            replacement.
+            """
+        case .token(_, isThisDevice: false):
+            """
+            Whatever holds this token stops working immediately, including a \
+            lost or stolen device. It cannot be restored; a replacement has to \
+            be minted.
+            """
+        case .session:
+            """
+            That browser session is signed out immediately and lands back at \
+            the login page. Anything unsaved in it is lost.
+            """
+        }
+    }
+
+    var caution: FailureMessage? {
+        switch self {
+        case .token(let token, isThisDevice: false) where !token.isActive:
+            .app("This token is already inactive, so revoking it changes nothing that is still working.")
+        case .session(let row) where row.isCurrent:
+            .app("The server reports this as the session making this request.")
+        default:
+            nil
+        }
+    }
+}
+
+/// Who can sign in, who is signed in, and what tokens exist — and which of
+/// them should stop.
 ///
 /// One screen with a picker rather than three sidebar entries, for the same
 /// reason ownership is: these are looked up together when answering one
 /// question — "who has access, and should they still".
+///
+/// The second half of that question is the write this screen carries. Every
+/// sign-in mints a per-device `sddi_` token, so the phone that leaves a pocket
+/// is a credential still in the wild; the operator wants it dead from whatever
+/// device they are still holding, and a response that begins "find a laptop"
+/// is not a response.
 struct AccessView: View {
     let session: ControlPlaneSession
+    /// Called when the operator revokes the credential this app itself holds.
+    ///
+    /// A no-op default keeps previews and tests buildable, but the app always
+    /// passes the real sign-out: after this particular revocation every
+    /// subsequent request is a 401, and staying on the screen would present
+    /// that as a series of errors rather than as the sign-out it is.
+    var onSelfRevoked: () -> Void = {}
+
+    @Environment(Permissions.self) private var permissions
 
     enum Kind: String, CaseIterable, Identifiable {
         case users = "Users"
@@ -210,6 +296,16 @@ struct AccessView: View {
     @State private var users: LoadState<[Components.Schemas.AppApiV1UsersRouterUserResponse]> = .idle
     @State private var sessions: LoadState<[Components.Schemas.SessionRow]> = .idle
     @State private var tokens: LoadState<[Components.Schemas.ApiTokenResponse]> = .idle
+
+    /// The credential waiting on a typed confirmation, if any.
+    @State private var pending: RevocationTarget?
+    @State private var isRevoking = false
+    @State private var revocationFailure: FailureMessage?
+
+    /// Tokens are their own resource type in the grammar; sessions are part of
+    /// user administration, which the platform notes is superadmin in practice.
+    private var mayRevokeTokens: Bool { permissions.canWrite("api_token") }
+    private var mayRevokeSessions: Bool { permissions.canWrite("user") }
 
     var body: some View {
         List {
@@ -264,6 +360,19 @@ struct AccessView: View {
                             )
                             .font(.caption2).foregroundStyle(.tertiary)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            // An already-revoked session has nothing left to
+                            // revoke, so the affordance is absent rather than
+                            // present and pointless.
+                            if mayRevokeSessions && !row.revoked {
+                                Button(role: .destructive) {
+                                    revocationFailure = nil
+                                    pending = .session(row)
+                                } label: {
+                                    Label("Revoke", systemImage: "xmark.circle")
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -271,10 +380,16 @@ struct AccessView: View {
                 LoadStateView(state: tokens, emptyMessage: "No API tokens.", retry: { load(.tokens) }) {
                     rows in
                     ForEach(rows, id: \.id) { token in
+                        let mine = isThisDevice(token, among: rows)
                         VStack(alignment: .leading, spacing: 3) {
                             HStack {
                                 Text(token.name)
                                 Spacer()
+                                // Named on the row, not only in the sheet. The
+                                // operator scanning for the phone they lost
+                                // needs to know which one *not* to pick before
+                                // they swipe, not after.
+                                if mine { Badge(localised: "this device", tint: .green) }
                                 if !token.isActive { Badge(localised: "inactive", tint: .secondary) }
                                 ExpiryBadge(date: token.expiresAt)
                             }
@@ -286,6 +401,16 @@ struct AccessView: View {
                             Text("last used \(Date.relativeOrNever(token.lastUsedAt))")
                                 .font(.caption2).foregroundStyle(.tertiary)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if mayRevokeTokens {
+                                Button(role: .destructive) {
+                                    revocationFailure = nil
+                                    pending = .token(token, isThisDevice: mine)
+                                } label: {
+                                    Label("Revoke", systemImage: "xmark.circle")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -293,6 +418,87 @@ struct AccessView: View {
         .navigationTitle("Access")
         .refreshable { await fetch(kind) }
         .task(id: kind) { await fetch(kind) }
+        .sheet(item: $pending) { target in
+            DeleteConfirmationSheet(
+                subject: target.subject,
+                title: target.title,
+                consequence: target.consequence,
+                caution: target.caution,
+                failure: revocationFailure,
+                isDeleting: isRevoking,
+                onDelete: { Task { await revoke(target) } },
+                onCancel: { pending = nil }
+            )
+        }
+    }
+
+    /// Whether this row is the credential this app is holding.
+    ///
+    /// Matched on the prefix the server itself publishes, and only when
+    /// exactly one row carries it. Two rows sharing a prefix is unlikely, not
+    /// impossible — and labelling the wrong one "this device" would aim the
+    /// warning at precisely the operator it exists to protect, so an ambiguous
+    /// match claims nothing.
+    private func isThisDevice(
+        _ token: Components.Schemas.ApiTokenResponse,
+        among rows: [Components.Schemas.ApiTokenResponse]
+    ) -> Bool {
+        let prefix = session.tokenPrefix
+        guard !prefix.isEmpty, token.prefix == prefix else { return false }
+        return rows.count(where: { $0.prefix == prefix }) == 1
+    }
+
+    private func revoke(_ target: RevocationTarget) async {
+        isRevoking = true
+        revocationFailure = nil
+        defer { isRevoking = false }
+
+        do {
+            switch target {
+            case .token(let token, let isThisDevice):
+                let response = try await session.client
+                    .deleteTokenApiV1ApiTokensTokenIdDelete(path: .init(tokenId: token.id))
+                switch response {
+                case .noContent: break
+                case .unprocessableContent: throw APIStatusError(status: 422)
+                case .undocumented(let statusCode, let payload):
+                    throw await APIStatusError(status: statusCode, payload: payload)
+                }
+                if case .loaded(let rows) = tokens {
+                    tokens = .loaded(rows.filter { $0.id != token.id })
+                }
+                pending = nil
+                // Revoking this device's own credential is a sign-out, so it
+                // is reported as one. Every request after this point is a 401,
+                // and staying here would render that as a wall of errors on a
+                // screen the operator can no longer read.
+                if isThisDevice { onSelfRevoked() }
+
+            case .session(let row):
+                let response = try await session.client
+                    .revokeSessionApiV1SessionsSessionIdDelete(path: .init(sessionId: row.id))
+                switch response {
+                case .noContent: break
+                case .unprocessableContent: throw APIStatusError(status: 422)
+                case .undocumented(let statusCode, let payload):
+                    throw await APIStatusError(status: statusCode, payload: payload)
+                }
+                if case .loaded(let rows) = sessions {
+                    // The list shows revoked sessions with a badge rather than
+                    // dropping them, so the row stays and reports its new state.
+                    var revoked = row
+                    revoked.revoked = true
+                    sessions = .loaded(RowUpdate.apply(revoked, to: rows, id: \.id))
+                }
+                pending = nil
+            }
+        } catch {
+            // A revocation carries no body the server could soft-conflict on,
+            // so nothing here is ever offered as re-sendable.
+            if case .failed(let message) = await WriteFailure.classify(error, forced: true) {
+                revocationFailure = message
+            }
+        }
     }
 
     private func load(_ kind: Kind) { Task { await fetch(kind) } }
