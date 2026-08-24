@@ -87,7 +87,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .dhcp: "arrow.left.arrow.right"
         case .domains: "at"
         case .certificates: "lock.shield"
-        case .devices: "poweroutlet.type.b.squarefill"
+        case .devices: "switch.2"
         case .vlans: "point.3.connected.trianglepath.dotted"
         case .vrfs: "arrow.triangle.branch"
         case .circuits: "cable.connector"
