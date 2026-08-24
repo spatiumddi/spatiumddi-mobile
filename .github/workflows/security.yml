@@ -79,31 +79,31 @@ jobs:
           languages: swift
           queries: security-extended
 
-      # `ONLY_ACTIVE_ARCH=YES` is the whole point of this invocation, and it is
-      # worth the paragraph because the default is quietly enormous here.
+      # This step does not currently finish inside the timeout, and the cause
+      # is structural rather than a slow runner.
       #
-      # This project builds its API client with the swift-openapi-generator
-      # *build-tool plugin*, so a build has to compile that plugin — and its
-      # dependency tree: OpenAPIKit, swift-collections, argument-parser, Yams,
-      # numerics, algorithms — as host tools for macOS, before it compiles a
-      # line of the app. Without this flag Xcode builds those host tools for
-      # both arm64 and x86_64.
+      # The API client is produced by the swift-openapi-generator *build-tool
+      # plugin*, so every build compiles the generator and its dependency tree
+      # — OpenAPIKit, swift-collections, argument-parser, Yams, numerics — as
+      # host tools before it reaches a line of app code, and CodeQL instruments
+      # all of it. Measured on a timed-out run: 1,316 Swift compile units, of
+      # which 24 were the app target and 14 were SpatiumAPI.
       #
-      # Measured on a timed-out run: 1,064 Swift compile units, split exactly
-      # 532/532 across the two architectures, of which 24 were the app target
-      # and 14 were SpatiumAPI. CodeQL instruments all of it, so ~97% of a
-      # 90-minute security scan was the code generator, compiled twice, to
-      # analyse an iOS app.
+      # `ONLY_ACTIVE_ARCH=YES` was tried here and **measured to do nothing** —
+      # the arm64/x86_64 split stayed exactly 50/50, because SwiftPM package
+      # targets do not honour it. It was removed rather than left in place
+      # looking like a fix.
       #
-      # Building host tools for the runner's own architecture only is the
-      # correct behaviour regardless; it costs no analysis coverage, because
-      # the second slice is the same source compiled again.
+      # The real lever is not building the generator at all. CLAUDE.md already
+      # says to "pin one server version, generate against that exact document,
+      # and commit the generated code"; doing that would take the generator out
+      # of every build, not just this one. That is a deliberate change to how
+      # the client is produced, so it is not made here.
       - name: Build
         run: |
           xcodebuild -project SpatiumDDI/SpatiumDDI.xcodeproj -scheme SpatiumDDI \
             -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
-            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO build
 
       - name: Analyze
