@@ -25,6 +25,11 @@ struct OverviewView: View {
                 IPAMSummarySection(model: model)
                 DNSSummarySection(model: model)
                 DHCPSummarySection(model: model)
+                // Below the estate counts on purpose: the counts answer "how
+                // big is this", which is a glance, and the charts answer "what
+                // is it doing", which is a scroll.
+                TrafficSection(session: session)
+                TopReportsSection(session: session)
             }
         }
         .navigationTitle("Overview")

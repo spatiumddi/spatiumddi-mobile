@@ -212,6 +212,7 @@ struct IPAMAddressesView: View {
     /// has to be reflected locally or the screen keeps showing the old name
     /// under a sheet that just succeeded.
     @State private var edited: Components.Schemas.SubnetResponse?
+    @State private var history: LoadState<[Components.Schemas.UtilizationHistoryPoint]> = .idle
     @Environment(Permissions.self) private var permissions
 
     private var current: Components.Schemas.SubnetResponse { edited ?? subnet }
@@ -249,6 +250,23 @@ struct IPAMAddressesView: View {
                 }
             }
 
+            Section {
+                switch history {
+                case .idle, .loading:
+                    ProgressView().frame(maxWidth: .infinity)
+                case .loaded(let points):
+                    UtilisationTrendChart(points: points)
+                case .failed(let message):
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            } header: {
+                Text("Utilisation over 90 days")
+            } footer: {
+                Text("Whether this subnet is filling up, or has always looked like this.")
+            }
+
             Section("Addresses") {
                 LoadStateView(
                     state: state, emptyMessage: "No addresses are recorded in this subnet.", retry: load
@@ -281,8 +299,8 @@ struct IPAMAddressesView: View {
         .breadcrumbs(trail)
         .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
         .dismissableKeyboard()
-        .refreshable { await fetch() }
-        .task { if case .idle = state { await fetch() } }
+        .refreshable { await refresh() }
+        .task { if case .idle = state { await refresh() } }
         .toolbar {
             // Hidden from an account with no write grant as a courtesy. The
             // server enforces this independently — non-negotiable #4 — and the
@@ -322,7 +340,35 @@ struct IPAMAddressesView: View {
         }
     }
 
-    private func load() { Task { await fetch() } }
+    private func load() { Task { await refresh() } }
+
+    private func refresh() async {
+        async let a: Void = fetch()
+        async let b: Void = fetchHistory()
+        _ = await (a, b)
+    }
+
+    /// Occupancy over time. Its own state, not folded into the address fetch:
+    /// a control plane that has never sampled this subnet still has addresses
+    /// worth showing, so a missing trend is not a failure of the screen.
+    private func fetchHistory() async {
+        history = .loading
+        history = await LoadState.fetching {
+            let response = try await session.client
+                .getSubnetUtilizationHistoryApiV1IpamSubnetsSubnetIdUtilizationHistoryGet(
+                    path: .init(subnetId: subnet.id),
+                    query: .init(days: 90)
+                )
+            switch response {
+            case .ok(let ok):
+                return try ok.body.json.sorted { $0.sampledAt < $1.sampledAt }
+            case .unprocessableContent:
+                throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
+            }
+        }
+    }
 
     private func fetch() async {
         state = .loading

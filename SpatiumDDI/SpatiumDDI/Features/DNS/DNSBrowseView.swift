@@ -86,6 +86,14 @@ struct DNSZonesView: View {
 
     var body: some View {
         List {
+            Section {
+                NavigationLink {
+                    DNSServersView(session: session, group: group)
+                } label: {
+                    Label("DNS Servers", systemImage: "server.rack")
+                }
+            }
+
             // Routed through LoadStateView rather than checking `.loaded` by
             // hand: it already distinguishes a group with no zones from a
             // filter that matched none, and doing it manually is what made an
