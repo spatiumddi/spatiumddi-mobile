@@ -97,9 +97,38 @@ proxy() {
   stop >/dev/null 2>&1 || true
   ( cd "$WORK" && { nohup "$ROOT/scripts/dev-tls-proxy.py" "$HEALTHY_PORT" cert.pem key.pem "$upstream" \
       > proxy.log 2>&1 & echo $! > healthy.pid; } )
-  sleep 2
+  wait_for_stub "$HEALTHY_PORT" proxy
   echo "proxy       https://localhost:$HEALTHY_PORT -> $upstream"
   echo "fingerprint $(fingerprint)"
+}
+
+# Block until the stub actually answers, or say so and stop.
+#
+# A fixed `sleep` was what this used to do, and it is the reason six trust
+# tests failed twice on `main` against a tree whose own pull request was green:
+# a cold runner can take longer than the sleep to get Python listening, every
+# test then times out at the client's 20-second limit, and the start-up banner
+# has already printed as though all were well. The banner is not evidence — it
+# prints whether or not anything bound the port.
+#
+# Polls over `localhost` deliberately, which is what the app connects to, so a
+# dual-stack bind that silently came up IPv4-only fails here rather than 20
+# minutes later inside the suite.
+wait_for_stub() {
+  local port="$1" name="$2" attempt=0
+  while (( attempt < 60 )); do
+    # No `-f`: the maintenance stub answers 503 by design, and that is a
+    # perfectly good sign of life.
+    if curl -sk --max-time 2 "https://localhost:$port/health/platform" >/dev/null 2>&1; then
+      return 0
+    fi
+    attempt=$(( attempt + 1 ))
+    sleep 0.5
+  done
+  echo "stub '$name' never answered on port $port after 30s" >&2
+  echo "--- $name.log ---" >&2
+  tail -20 "$WORK/$name.log" >&2 2>/dev/null || true
+  return 1
 }
 
 start() {
@@ -110,7 +139,8 @@ start() {
   # job and the pid file lands in the repo root instead of the work directory.
   ( cd "$WORK" && { nohup python3 server.py "$HEALTHY_PORT" healthy > healthy.log 2>&1 & echo $! > healthy.pid; } )
   ( cd "$WORK" && { nohup python3 server.py "$MAINTENANCE_PORT" maintenance > maintenance.log 2>&1 & echo $! > maintenance.pid; } )
-  sleep 2
+  wait_for_stub "$HEALTHY_PORT" healthy
+  wait_for_stub "$MAINTENANCE_PORT" maintenance
   echo "healthy      https://localhost:$HEALTHY_PORT/health/platform"
   echo "maintenance  https://localhost:$MAINTENANCE_PORT/health/platform"
   echo "fingerprint  $(fingerprint)"
