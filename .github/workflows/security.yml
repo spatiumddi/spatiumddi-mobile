@@ -63,18 +63,8 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: macos-latest
-    # CodeQL instruments the Swift compile, so it is roughly triple a plain
-    # build — and the app is now big enough that 60 minutes was a coin flip.
-    #
-    # Measured, not guessed. Before the parity work landed (#31) this job took
-    # 39-41 minutes. That change added ~5,300 lines of Swift and 46 generated
-    # API operations, taking `Types.swift` from 2.1MB to 2.8MB, and the job
-    # went to 50-61 minutes: two of the four runs after it were cancelled on
-    # the hour while the other two finished at 46 and 50. A cap the job lands
-    # either side of is worse than no cap, because a cancelled security scan
-    # reads as a failed one and people learn to merge past it.
-    #
-    # 90 leaves real headroom while still catching a genuinely wedged job.
+    # 60 minutes used to be enough and stopped being; 90 is headroom, not a
+    # target. What the job actually spends its time on is below.
     timeout-minutes: 90
     permissions:
       contents: read
@@ -89,11 +79,31 @@ jobs:
           languages: swift
           queries: security-extended
 
+      # `ONLY_ACTIVE_ARCH=YES` is the whole point of this invocation, and it is
+      # worth the paragraph because the default is quietly enormous here.
+      #
+      # This project builds its API client with the swift-openapi-generator
+      # *build-tool plugin*, so a build has to compile that plugin — and its
+      # dependency tree: OpenAPIKit, swift-collections, argument-parser, Yams,
+      # numerics, algorithms — as host tools for macOS, before it compiles a
+      # line of the app. Without this flag Xcode builds those host tools for
+      # both arm64 and x86_64.
+      #
+      # Measured on a timed-out run: 1,064 Swift compile units, split exactly
+      # 532/532 across the two architectures, of which 24 were the app target
+      # and 14 were SpatiumAPI. CodeQL instruments all of it, so ~97% of a
+      # 90-minute security scan was the code generator, compiled twice, to
+      # analyse an iOS app.
+      #
+      # Building host tools for the runner's own architecture only is the
+      # correct behaviour regardless; it costs no analysis coverage, because
+      # the second slice is the same source compiled again.
       - name: Build
         run: |
           xcodebuild -project SpatiumDDI/SpatiumDDI.xcodeproj -scheme SpatiumDDI \
             -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
+            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO build
 
       - name: Analyze
