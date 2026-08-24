@@ -38,10 +38,32 @@ nonisolated struct MaintenanceState: Equatable, Sendable {
         self.startedAt = startedAt
     }
 
+    /// The mapping from what the server sends, which is three independent
+    /// optionals rather than one state.
+    ///
+    /// Separate from the `SettingsResponse` initialiser below so it can be
+    /// exercised without constructing a 135-property generated struct. The
+    /// whole of the logic is here, and two of its three rules are easy to get
+    /// backwards:
+    ///
+    /// - **absent means off.** A control plane that has never had a change
+    ///   window omits the flag, and reading that as "unknown" would leave the
+    ///   section with no state to draw.
+    /// - **a message with the flag off is still off.** The platform keeps the
+    ///   last message after a window is lifted, deliberately — the next window
+    ///   is usually about the same thing — so the message is not the signal.
+    init(enabled: Bool?, message: String?, startedAt: Date?) {
+        self.isOn = enabled ?? false
+        self.message = message ?? ""
+        self.startedAt = startedAt
+    }
+
     init(_ settings: Components.Schemas.SettingsResponse) {
-        self.isOn = settings.maintenanceModeEnabled ?? false
-        self.message = settings.maintenanceMessage ?? ""
-        self.startedAt = settings.maintenanceStartedAt
+        self.init(
+            enabled: settings.maintenanceModeEnabled,
+            message: settings.maintenanceMessage,
+            startedAt: settings.maintenanceStartedAt
+        )
     }
 }
 

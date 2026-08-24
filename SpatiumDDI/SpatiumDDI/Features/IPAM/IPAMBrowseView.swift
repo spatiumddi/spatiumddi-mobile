@@ -205,7 +205,16 @@ struct IPAMAddressesView: View {
     @State private var state: LoadState<[Components.Schemas.IPAddressResponse]> = .idle
     @State private var query = ""
     @State private var isAllocating = false
+    @State private var isEditing = false
+    /// The subnet as last saved, when this screen has changed it.
+    ///
+    /// The row that got here is a copy the parent list still holds, so an edit
+    /// has to be reflected locally or the screen keeps showing the old name
+    /// under a sheet that just succeeded.
+    @State private var edited: Components.Schemas.SubnetResponse?
     @Environment(Permissions.self) private var permissions
+
+    private var current: Components.Schemas.SubnetResponse { edited ?? subnet }
 
     private var visible: [Components.Schemas.IPAddressResponse] {
         guard case .loaded(let addresses) = state else { return [] }
@@ -221,13 +230,22 @@ struct IPAMAddressesView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent("Network", value: subnet.network)
-                if let gateway = subnet.gateway { LabeledContent("Gateway", value: gateway) }
-                LabeledContent("Status", value: subnet.status)
+                LabeledContent("Network", value: current.network)
+                if !current.name.isEmpty { LabeledContent("Name", value: current.name) }
+                if let gateway = current.gateway { LabeledContent("Gateway", value: gateway) }
+                LabeledContent("Status", value: current.status)
                 LabeledContent("Utilisation") {
                     Text(
-                        "\(subnet.allocatedIps.formatted()) / \(subnet.totalIps.formattedAddressCount)"
+                        "\(current.allocatedIps.formatted()) / \(current.totalIps.formattedAddressCount)"
                     )
+                }
+                if !current.description.isEmpty {
+                    Text(verbatim: current.description).font(.caption).foregroundStyle(.secondary)
+                }
+                // Beside the fields it edits rather than in the bar, which is
+                // where the one thing an operator comes here to *do* lives.
+                if permissions.canWrite("subnet", id: subnet.id) {
+                    Button("Edit Subnet Details") { isEditing = true }
                 }
             }
 
@@ -246,8 +264,8 @@ struct IPAMAddressesView: View {
                                 IPAMAddressDetailView(
                                     session: session,
                                     address: address,
-                                    subnet: subnet,
-                                    trail: trail + [subnet.network],
+                                    subnet: current,
+                                    trail: trail + [current.network],
                                     onChanged: { Task { await fetch() } }
                                 )
                             } label: {
@@ -258,7 +276,7 @@ struct IPAMAddressesView: View {
                 }
             }
         }
-        .navigationTitle(subnet.name.isEmpty ? subnet.network : subnet.name)
+        .navigationTitle(current.name.isEmpty ? current.network : current.name)
         .navigationBarTitleDisplayMode(.inline)
         .breadcrumbs(trail)
         .searchable(text: $query, prompt: "Filter by IP, hostname or MAC")
@@ -282,7 +300,7 @@ struct IPAMAddressesView: View {
         .sheet(isPresented: $isAllocating) {
             AllocateAddressView(
                 session: session,
-                subnet: subnet,
+                subnet: current,
                 onCreated: { _ in
                     // Refetched rather than inserted locally. The row the
                     // server returns is pre-enrichment — no `fqdn`, no vendor,
@@ -292,6 +310,14 @@ struct IPAMAddressesView: View {
                     Task { await fetch() }
                 },
                 onDismiss: { isAllocating = false }
+            )
+        }
+        .sheet(isPresented: $isEditing) {
+            EditSubnetView(
+                session: session,
+                subnet: current,
+                onSaved: { edited = $0 },
+                onDismiss: { isEditing = false }
             )
         }
     }
