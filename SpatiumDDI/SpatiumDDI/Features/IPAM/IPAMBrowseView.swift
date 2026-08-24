@@ -18,6 +18,16 @@ struct IPAMBrowseView: View {
 
     var body: some View {
         List {
+            Section {
+                NavigationLink {
+                    StaleAddressesView(session: session)
+                } label: {
+                    Label("Stale Addresses", systemImage: "clock.badge.exclamationmark")
+                }
+            } footer: {
+                Text("Addresses nothing has answered for, and one action to mark them.")
+            }
+
             LoadStateView(state: state, emptyMessage: "No IP spaces are defined on this server.", retry: load)
             { spaces in
                 ForEach(spaces, id: \.id) { space in

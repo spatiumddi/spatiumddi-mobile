@@ -31,6 +31,10 @@ struct IPAMAddressDetailView: View {
     @State private var state: LoadState<Components.Schemas.IPAddressResponse> = .idle
     @State private var isEditing = false
     @State private var deletion: DeleteAddressModel?
+    /// NAT mappings touching this address. Loaded separately and quietly: an
+    /// estate without NAT modelling has none, and a failure here must not turn
+    /// an address screen into an error screen.
+    @State private var nat: [Components.Schemas.NATMappingResponse] = []
     @Environment(Permissions.self) private var permissions
     @Environment(\.dismiss) private var dismiss
 
@@ -154,6 +158,18 @@ struct IPAMAddressDetailView: View {
                 }
             }
 
+            if !nat.isEmpty {
+                Section {
+                    ForEach(nat, id: \.id) { mapping in
+                        NATMappingRow(mapping: mapping, thisAddress: current.address)
+                    }
+                } header: {
+                    Text("Translates to")
+                } footer: {
+                    Text("What this address becomes on the other side of a NAT, as modelled here.")
+                }
+            }
+
             if !current.tags.additionalProperties.value.isEmpty {
                 Section("Tags") {
                     ForEach(tagPairs, id: \.key) { pair in
@@ -179,8 +195,8 @@ struct IPAMAddressDetailView: View {
         .navigationTitle(current.address)
         .breadcrumbs(trail)
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await fetch() }
-        .task { if case .idle = state { await fetch() } }
+        .refreshable { await refresh() }
+        .task { if case .idle = state { await refresh() } }
         .toolbar {
             // A courtesy gate — non-negotiable #4. The server enforces this
             // independently and both sheets report a 403 honestly.
@@ -261,6 +277,24 @@ struct IPAMAddressDetailView: View {
             .sorted { $0.key < $1.key }
     }
 
+    private func refresh() async {
+        async let a: Void = fetch()
+        async let b: Void = fetchNAT()
+        _ = await (a, b)
+    }
+
+    /// Best-effort. A control plane that does not model NAT answers 404 and
+    /// this section simply does not appear — which is the truth, rather than an
+    /// error about a feature nobody is using.
+    private func fetchNAT() async {
+        let response = try? await session.client
+            .listNatMappingsForIpApiV1IpamNatMappingsByIpIpAddressIdGet(
+                path: .init(ipAddressId: address.id)
+            )
+        guard case .ok(let ok) = response, let rows = try? ok.body.json else { return }
+        nat = rows
+    }
+
     private func fetch() async {
         state = .loading
         state = await LoadState.fetching {
@@ -274,6 +308,52 @@ struct IPAMAddressDetailView: View {
             case .undocumented(let statusCode, let payload):
                 throw await APIStatusError(status: statusCode, payload: payload)
             }
+        }
+    }
+}
+
+/// One NAT mapping, read from the side the operator is standing on.
+///
+/// Which of the two addresses is "this one" decides how the row reads, so the
+/// arrow is drawn from the address whose screen this is rather than always
+/// internal-to-external. An operator looking at a public address wants to know
+/// what is behind it; one looking at a private address wants to know what it
+/// appears as.
+struct NATMappingRow: View {
+    let mapping: Components.Schemas.NATMappingResponse
+    /// The address whose screen this is.
+    let thisAddress: String
+
+    private var isInternalSide: Bool { mapping.internalIp == thisAddress }
+
+    private var other: String? {
+        isInternalSide ? mapping.externalIp : mapping.internalIp
+    }
+
+    private var ports: String? {
+        let start = isInternalSide ? mapping.externalPortStart : mapping.internalPortStart
+        let end = isInternalSide ? mapping.externalPortEnd : mapping.internalPortEnd
+        guard let start else { return nil }
+        if let end, end != start { return "\(start)–\(end)" }
+        return String(start)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text(verbatim: other ?? String(localized: "unmapped"))
+                    .font(.body.monospaced())
+                Spacer()
+                Badge(text: mapping.kind, tint: .purple)
+            }
+            Text(verbatim: mapping.name).font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Text(verbatim: mapping._protocol)
+                if let ports { Text(verbatim: "port \(ports)") }
+                if let device = mapping.deviceLabel, !device.isEmpty { Text(verbatim: device) }
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
         }
     }
 }

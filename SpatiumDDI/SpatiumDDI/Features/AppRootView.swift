@@ -289,8 +289,12 @@ struct SignedInView: View {
             CircuitsView(session: session)
         case .asns:
             ASNsView(session: session)
+        case .lookingGlass:
+            LookingGlassView(session: session)
         case .ownership:
             OwnershipView(session: session)
+        case .integrations:
+            IntegrationsView(session: session)
         case .access:
             // The sign-out path is the same one a server-side rejection takes:
             // revoking this device's own token *is* the server rejecting it,

@@ -159,8 +159,9 @@ filter:
     - /api/v1/ipam/reports/stale-ips/deprecate
 
     # "What does this translate to", answered from an address rather than
-    # browsed as a table.
-    - /api/v1/ipam/nat-mappings
+    # browsed as a table — so the by-ip lookup only. The collection is
+    # deliberately absent: a NAT table is a desk-sized thing to read, and
+    # generating a path nothing calls is dead weight in a client this size.
     - /api/v1/ipam/nat-mappings/by-ip/{ip_address_id}
 
     # Looking Glass: route-for-this-IP and route-for-this-prefix as an action

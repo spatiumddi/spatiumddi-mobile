@@ -30,7 +30,9 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
     case vrfs
     case circuits
     case asns
+    case lookingGlass
     case ownership
+    case integrations
     case access
     case audit
     case trash
@@ -59,6 +61,8 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .vrfs: "VRFs"
         case .circuits: "Circuits"
         case .asns: "ASNs"
+        case .lookingGlass: "Looking Glass"
+        case .integrations: "Integrations"
         case .ownership: "Ownership"
         case .access: "Access"
         case .audit: "Audit Log"
@@ -88,6 +92,8 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .vrfs: "arrow.triangle.branch"
         case .circuits: "cable.connector"
         case .asns: "number"
+        case .lookingGlass: "binoculars"
+        case .integrations: "puzzlepiece.extension"
         case .ownership: "building.2"
         case .access: "person.2.badge.key"
         case .audit: "list.bullet.rectangle"
@@ -120,6 +126,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .vrfs: "network.vrf"
         case .circuits: "network.circuit"
         case .asns: "network.asn"
+        case .lookingGlass: "network.looking_glass"
         case .ownership: "network.customer"
         case .networkTools: "tools.network"
         default: nil
@@ -141,8 +148,8 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
             switch self {
             case .monitor: [.overview, .alerts, .clientLookup, .changeRequests, .newDevices]
             case .estate: [.ipam, .dns, .dhcp, .dhcpLog, .domains, .certificates]
-            case .network: [.devices, .vlans, .vrfs, .circuits, .asns]
-            case .administration: [.ownership, .access, .audit, .trash]
+            case .network: [.devices, .vlans, .vrfs, .circuits, .asns, .lookingGlass]
+            case .administration: [.ownership, .access, .integrations, .audit, .trash]
             case .tools: [.networkTools, .search, .server, .about]
             }
         }
