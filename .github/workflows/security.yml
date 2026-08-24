@@ -63,8 +63,19 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: macos-latest
-    # CodeQL instruments the Swift compile, so it is roughly triple a plain build.
-    timeout-minutes: 60
+    # CodeQL instruments the Swift compile, so it is roughly triple a plain
+    # build — and the app is now big enough that 60 minutes was a coin flip.
+    #
+    # Measured, not guessed. Before the parity work landed (#31) this job took
+    # 39-41 minutes. That change added ~5,300 lines of Swift and 46 generated
+    # API operations, taking `Types.swift` from 2.1MB to 2.8MB, and the job
+    # went to 50-61 minutes: two of the four runs after it were cancelled on
+    # the hour while the other two finished at 46 and 50. A cap the job lands
+    # either side of is worse than no cap, because a cancelled security scan
+    # reads as a failed one and people learn to merge past it.
+    #
+    # 90 leaves real headroom while still catching a genuinely wedged job.
+    timeout-minutes: 90
     permissions:
       contents: read
       security-events: write
