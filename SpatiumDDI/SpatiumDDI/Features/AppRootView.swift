@@ -279,6 +279,8 @@ struct SignedInView: View {
             DomainsView(session: session)
         case .certificates:
             CertificatesView(session: session)
+        case .devices:
+            NetworkDevicesView(session: session)
         case .vlans:
             VLANRoutersView(session: session)
         case .vrfs:
@@ -287,10 +289,17 @@ struct SignedInView: View {
             CircuitsView(session: session)
         case .asns:
             ASNsView(session: session)
+        case .lookingGlass:
+            LookingGlassView(session: session)
         case .ownership:
             OwnershipView(session: session)
+        case .integrations:
+            IntegrationsView(session: session)
         case .access:
-            AccessView(session: session)
+            // The sign-out path is the same one a server-side rejection takes:
+            // revoking this device's own token *is* the server rejecting it,
+            // one request early.
+            AccessView(session: session, onSelfRevoked: onSessionRejected)
         case .audit:
             AuditLogView(session: session)
         case .trash:
@@ -364,6 +373,11 @@ struct ServerDetailView: View {
             } footer: {
                 if let caveat = protection?.caveat { Text(caveat) }
             }
+
+            MaintenanceSection(
+                session: session,
+                serverName: server.trimmedLabel ?? address.displayName
+            )
 
             Section("Signed in as") {
                 LoadStateView(

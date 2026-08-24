@@ -25,6 +25,11 @@ struct OverviewView: View {
                 IPAMSummarySection(model: model)
                 DNSSummarySection(model: model)
                 DHCPSummarySection(model: model)
+                // Below the estate counts on purpose: the counts answer "how
+                // big is this", which is a glance, and the charts answer "what
+                // is it doing", which is a scroll.
+                TrafficSection(session: session)
+                TopReportsSection(session: session)
             }
         }
         .navigationTitle("Overview")
@@ -317,35 +322,3 @@ private struct DHCPSummarySection: View {
 }
 
 // MARK: - Shared
-
-/// One KPI: a number and what it counts.
-///
-/// An unknown value renders as a dash and keeps its tile, rather than the tile
-/// disappearing. A missing tile reads as "this platform has no such thing";
-/// a dash reads as "this number could not be established", which is what
-/// actually happened.
-private struct CountTile: View {
-    let value: Int?
-    let label: LocalizedStringResource
-    let tint: Color
-
-    private var text: String { value?.formatted() ?? "—" }
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(text)
-                .font(.title2.weight(.semibold).monospacedDigit())
-                .foregroundStyle(value == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(tint))
-                .contentTransition(.numericText())
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            value.map { "\($0) \(String(localized: label))" } ?? "\(String(localized: label)) unavailable")
-    }
-}

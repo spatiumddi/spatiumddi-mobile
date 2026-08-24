@@ -137,6 +137,12 @@ struct DHCPServerDetailView: View {
     @State private var stats: LoadState<Components.Schemas.DHCPServerStatsResponse> = .idle
     @State private var leases: LoadState<[Components.Schemas.LeaseResponse]> = .idle
     @State private var leaseTotal = 0
+    @State private var pendingLeaseDelete: DeleteLeaseModel?
+    @Environment(Permissions.self) private var permissions
+
+    private var mayDeleteLeases: Bool {
+        permissions.canWrite("dhcp_server", "dhcp_scope", id: server.id)
+    }
     @State private var query = ""
 
     private var visibleLeases: [Components.Schemas.LeaseResponse] {
@@ -214,7 +220,20 @@ struct DHCPServerDetailView: View {
                             filterDescription: "No lease matches that address, MAC or hostname."
                         )
                     } else {
-                        ForEach(visibleLeases, id: \.id) { LeaseRow(lease: $0) }
+                        ForEach(visibleLeases, id: \.id) { lease in
+                            LeaseRow(lease: lease)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    if mayDeleteLeases {
+                                        Button(role: .destructive) {
+                                            pendingLeaseDelete = DeleteLeaseModel(
+                                                session: session, serverID: server.id, lease: lease
+                                            )
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                        }
                     }
                 }
             } header: {
@@ -231,6 +250,25 @@ struct DHCPServerDetailView: View {
         .dismissableKeyboard()
         .refreshable { await refresh() }
         .task { if case .idle = stats { await refresh() } }
+        .sheet(item: $pendingLeaseDelete) { model in
+            DeleteConfirmationSheet(
+                subject: model.subject,
+                title: "Delete this lease?",
+                consequence: model.consequence,
+                caution: model.caution,
+                failure: model.failure,
+                isDeleting: model.isDeleting,
+                onDelete: {
+                    Task {
+                        if await model.delete() {
+                            pendingLeaseDelete = nil
+                            await fetchLeases()
+                        }
+                    }
+                },
+                onCancel: { pendingLeaseDelete = nil }
+            )
+        }
     }
 
     private func refresh() async {
@@ -354,6 +392,14 @@ struct DHCPScopesView: View {
 
     var body: some View {
         List {
+            Section {
+                NavigationLink {
+                    MACBlocksView(session: session, group: group)
+                } label: {
+                    Label("Blocked MACs", systemImage: "nosign")
+                }
+            }
+
             LoadStateView(state: state, emptyMessage: "This group has no scopes.", retry: load) { scopes in
                 ForEach(scopes, id: \.id) { scope in
                     NavigationLink {
@@ -416,6 +462,23 @@ struct DHCPScopeDetailView: View {
     @State private var subnet: Components.Schemas.SubnetResponse?
     @State private var pools: LoadState<[Components.Schemas.AppApiV1DhcpPoolsPoolResponse]> = .idle
     @State private var statics: LoadState<[Components.Schemas.StaticResponse]> = .idle
+    @State private var isAddingReservation = false
+    @State private var pendingReservationDelete: DeleteReservationModel?
+    @Environment(Permissions.self) private var permissions
+
+    /// Whether this scope hands anything out dynamically.
+    ///
+    /// `nil` until the pools are known, which is the honest third answer:
+    /// deleting a reservation means something different in a scope with a pool
+    /// than in one without, and guessing which is worse than saying so.
+    private var hasPool: Bool? {
+        guard case .loaded(let pools) = pools else { return nil }
+        return !pools.isEmpty
+    }
+
+    private var mayEditReservations: Bool {
+        permissions.canWrite("dhcp_static", "dhcp_scope", "dhcp_server", id: scope.id)
+    }
 
     var body: some View {
         List {
@@ -487,6 +550,17 @@ struct DHCPScopeDetailView: View {
                             }
                             Text(entry.macAddress).font(.caption.monospaced()).foregroundStyle(.tertiary)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if mayEditReservations {
+                                Button(role: .destructive) {
+                                    pendingReservationDelete = DeleteReservationModel(
+                                        session: session, entry: entry, hasPool: hasPool
+                                    )
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -496,6 +570,48 @@ struct DHCPScopeDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await refresh() }
         .task { if case .idle = pools { await refresh() } }
+        .toolbar {
+            if mayEditReservations {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isAddingReservation = true
+                    } label: {
+                        Label("Add Reservation", systemImage: "plus")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $isAddingReservation) {
+            CreateReservationView(
+                session: session,
+                scope: scope,
+                network: subnet?.network,
+                // Refetched rather than spliced: the server fills in the IPAM
+                // link and the resolved address id, so the created row is not
+                // the row the list will show a second later.
+                onCreated: { _ in Task { await fetchStatics() } },
+                onDismiss: { isAddingReservation = false }
+            )
+        }
+        .sheet(item: $pendingReservationDelete) { model in
+            DeleteConfirmationSheet(
+                subject: model.subject,
+                title: "Delete this reservation?",
+                consequence: model.consequence,
+                caution: model.caution,
+                failure: model.failure,
+                isDeleting: model.isDeleting,
+                onDelete: {
+                    Task {
+                        if await model.delete() {
+                            pendingReservationDelete = nil
+                            await fetchStatics()
+                        }
+                    }
+                },
+                onCancel: { pendingReservationDelete = nil }
+            )
+        }
     }
 
     private func refresh() async {

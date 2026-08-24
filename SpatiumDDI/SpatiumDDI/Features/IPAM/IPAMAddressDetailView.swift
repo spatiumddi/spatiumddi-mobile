@@ -31,6 +31,10 @@ struct IPAMAddressDetailView: View {
     @State private var state: LoadState<Components.Schemas.IPAddressResponse> = .idle
     @State private var isEditing = false
     @State private var deletion: DeleteAddressModel?
+    /// NAT mappings touching this address. Its own state rather than folded
+    /// into the address fetch: a failure here must not turn an address screen
+    /// into an error screen, but it must still be reported in place.
+    @State private var nat: LoadState<[Components.Schemas.NATMappingResponse]> = .idle
     @Environment(Permissions.self) private var permissions
     @Environment(\.dismiss) private var dismiss
 
@@ -140,7 +144,11 @@ struct IPAMAddressDetailView: View {
                             "^[\(aliases) DNS alias](inflect: true)",
                             systemImage: "arrow.triangle.branch")
                     }
-                    if let nat = current.natMappingCount, nat > 0 {
+                    // Only while the mappings are not listed below: with
+                    // "Translates to" on screen the count is the same fact
+                    // stated worse, and the two are fetched separately so
+                    // they can disagree.
+                    if !natIsListed, let nat = current.natMappingCount, nat > 0 {
                         Label("^[\(nat) NAT mapping](inflect: true)", systemImage: "arrow.left.and.right")
                     }
                 } header: {
@@ -151,6 +159,34 @@ struct IPAMAddressDetailView: View {
                     Text(
                         "Renumbering or freeing this address affects these too. Follow them up in the web console."
                     )
+                }
+            }
+
+            if natSectionIsVisible {
+                Section {
+                    switch nat {
+                    case .idle, .loading:
+                        ProgressView().frame(maxWidth: .infinity).listRowSeparator(.hidden)
+                    case .loaded(let rows):
+                        ForEach(rows, id: \.id) { mapping in
+                            NATMappingRow(
+                                mapping: mapping,
+                                thisAddress: current.address,
+                                thisAddressId: current.id
+                            )
+                        }
+                    case .failed(let message):
+                        // Said, not swallowed. A 403 here means the mappings
+                        // exist and were withheld — which is a different fact
+                        // from this address having none.
+                        Label(message, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("Translates to")
+                } footer: {
+                    Text("What this address becomes on the other side of a NAT, as modelled here.")
                 }
             }
 
@@ -179,8 +215,8 @@ struct IPAMAddressDetailView: View {
         .navigationTitle(current.address)
         .breadcrumbs(trail)
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await fetch() }
-        .task { if case .idle = state { await fetch() } }
+        .refreshable { await refresh() }
+        .task { if case .idle = state { await refresh() } }
         .toolbar {
             // A courtesy gate — non-negotiable #4. The server enforces this
             // independently and both sheets report a 403 honestly.
@@ -261,6 +297,53 @@ struct IPAMAddressDetailView: View {
             .sorted { $0.key < $1.key }
     }
 
+    /// Whether any mapping actually came back.
+    private var natIsListed: Bool {
+        if case .loaded(let rows) = nat { return !rows.isEmpty }
+        return false
+    }
+
+    /// The section is worth a row only when it has mappings or a failure to
+    /// report — and worth a spinner only when the address is thought to have
+    /// some, so an estate with no NAT never grows an empty placeholder.
+    private var natSectionIsVisible: Bool {
+        switch nat {
+        case .idle, .loading: (current.natMappingCount ?? 0) > 0
+        case .loaded(let rows): !rows.isEmpty
+        case .failed: true
+        }
+    }
+
+    private func refresh() async {
+        async let a: Void = fetch()
+        async let b: Void = fetchNAT()
+        _ = await (a, b)
+    }
+
+    /// Secondary, but not silent.
+    ///
+    /// An estate that models no NAT answers `200 []`, which renders as no
+    /// section — so nothing has to be inferred from a status. `try?` and a
+    /// bare `guard case .ok` were doing the inferring: they collapsed 403,
+    /// 503 and a decode failure into the same "no NAT here", and left the
+    /// previous rows on screen when a refresh failed, which is the
+    /// stale-but-plausible state non-negotiable #3 exists to prevent.
+    private func fetchNAT() async {
+        nat = .loading
+        nat = await LoadState.fetching {
+            let response = try await session.client
+                .listNatMappingsForIpApiV1IpamNatMappingsByIpIpAddressIdGet(
+                    path: .init(ipAddressId: address.id)
+                )
+            switch response {
+            case .ok(let ok): return try ok.body.json
+            case .unprocessableContent: throw APIStatusError(status: 422)
+            case .undocumented(let statusCode, let payload):
+                throw await APIStatusError(status: statusCode, payload: payload)
+            }
+        }
+    }
+
     private func fetch() async {
         state = .loading
         state = await LoadState.fetching {
@@ -274,6 +357,66 @@ struct IPAMAddressDetailView: View {
             case .undocumented(let statusCode, let payload):
                 throw await APIStatusError(status: statusCode, payload: payload)
             }
+        }
+    }
+}
+
+/// One NAT mapping, read from the side the operator is standing on.
+///
+/// Which of the two addresses is "this one" decides how the row reads, so the
+/// arrow is drawn from the address whose screen this is rather than always
+/// internal-to-external. An operator looking at a public address wants to know
+/// what is behind it; one looking at a private address wants to know what it
+/// appears as.
+struct NATMappingRow: View {
+    let mapping: Components.Schemas.NATMappingResponse
+    /// The address whose screen this is.
+    let thisAddress: String
+    /// The same address by id.
+    ///
+    /// The id is the discriminator, not the text. The endpoint "matches on the
+    /// FK first and falls back to the INET string for legacy rows", so a
+    /// mapping can arrive with `internal_ip_address_id` set and `internal_ip`
+    /// null — and `nil == "10.1.0.50"` is `false`, which silently reads the
+    /// row from the wrong end: the far address renders as "unmapped" and the
+    /// ports shown are the ones on the side the operator is already standing
+    /// on. The string is kept only as the same fallback the server uses.
+    let thisAddressId: String
+
+    private var isInternalSide: Bool {
+        if let id = mapping.internalIpAddressId { return id == thisAddressId }
+        if let id = mapping.externalIpAddressId, id == thisAddressId { return false }
+        return mapping.internalIp == thisAddress
+    }
+
+    private var other: String? {
+        isInternalSide ? mapping.externalIp : mapping.internalIp
+    }
+
+    private var ports: String? {
+        let start = isInternalSide ? mapping.externalPortStart : mapping.internalPortStart
+        let end = isInternalSide ? mapping.externalPortEnd : mapping.internalPortEnd
+        guard let start else { return nil }
+        if let end, end != start { return "\(start)–\(end)" }
+        return String(start)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text(verbatim: other ?? String(localized: "unmapped"))
+                    .font(.body.monospaced())
+                Spacer()
+                Badge(text: mapping.kind, tint: .purple)
+            }
+            Text(verbatim: mapping.name).font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Text(verbatim: mapping._protocol)
+                if let ports { Text(verbatim: "port \(ports)") }
+                if let device = mapping.deviceLabel, !device.isEmpty { Text(verbatim: device) }
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
         }
     }
 }

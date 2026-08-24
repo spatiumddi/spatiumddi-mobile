@@ -86,6 +86,14 @@ struct DNSZonesView: View {
 
     var body: some View {
         List {
+            Section {
+                NavigationLink {
+                    DNSServersView(session: session, group: group)
+                } label: {
+                    Label("DNS Servers", systemImage: "server.rack")
+                }
+            }
+
             // Routed through LoadStateView rather than checking `.loaded` by
             // hand: it already distinguishes a group with no zones from a
             // filter that matched none, and doing it manually is what made an
@@ -169,7 +177,12 @@ struct DNSZoneDetailView: View {
     @State private var isCreating = false
     @State private var editing: EditingRecord?
     @State private var deletion: DeleteRecordModel?
+    @State private var isEditingZone = false
+    /// The zone as last saved, when this screen has changed it.
+    @State private var editedZone: Components.Schemas.ZoneResponse?
     @Environment(Permissions.self) private var permissions
+
+    private var current: Components.Schemas.ZoneResponse { editedZone ?? zone }
 
     /// Whether this zone accepts hand-made changes at all.
     ///
@@ -207,12 +220,12 @@ struct DNSZoneDetailView: View {
     var body: some View {
         List {
             Section("Zone") {
-                LabeledContent("Type", value: zone.zoneType)
-                LabeledContent("Primary NS", value: zone.primaryNs)
-                LabeledContent("Admin", value: zone.adminEmail)
-                LabeledContent("Serial", value: String(zone.lastSerial))
-                LabeledContent("Default TTL", value: Duration.seconds(zone.ttl).formattedCompact)
-                LabeledContent("DNSSEC", value: zone.dnssecEnabled ? "Signed" : "Not signed")
+                LabeledContent("Type", value: current.zoneType)
+                LabeledContent("Primary NS", value: current.primaryNs)
+                LabeledContent("Admin", value: current.adminEmail)
+                LabeledContent("Serial", value: String(current.lastSerial))
+                LabeledContent("Default TTL", value: Duration.seconds(current.ttl).formattedCompact)
+                LabeledContent("DNSSEC", value: current.dnssecEnabled ? "Signed" : "Not signed")
                 if zone.forwardOnly, !zone.forwarders.isEmpty {
                     LabeledContent("Forwarders", value: zone.forwarders.joined(separator: ", "))
                 }
@@ -221,6 +234,11 @@ struct DNSZoneDetailView: View {
                 }
                 if let pushed = zone.lastPushedAt {
                     LabeledContent("Last pushed", value: pushed.formatted(.relative(presentation: .named)))
+                }
+                // Beside the fields it edits. A synthesised zone is excluded
+                // for the same reason its records are: the reconciler owns it.
+                if isEditable {
+                    Button("Edit Zone Details") { isEditingZone = true }
                 }
             }
 
@@ -313,6 +331,15 @@ struct DNSZoneDetailView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $isEditingZone) {
+            EditZoneView(
+                session: session,
+                groupID: group.id,
+                zone: current,
+                onSaved: { editedZone = $0 },
+                onDismiss: { isEditingZone = false }
+            )
         }
         .sheet(isPresented: $isCreating) {
             CreateRecordView(

@@ -30,6 +30,9 @@ struct ClientLookupView: View {
     @State private var state: LoadState<[Result]> = .idle
     @State private var activeLeases: [Components.Schemas.LeaseResponse] = []
     @State private var searched = ""
+    /// Where the SNMP poller has seen this MAC. Built lazily so the screen
+    /// works unchanged on a control plane without the device module.
+    @State private var sightings: NetworkSightingModel?
 
     var body: some View {
         List {
@@ -81,6 +84,10 @@ struct ClientLookupView: View {
                 }
             }
 
+            if let sightings {
+                NetworkSightingSection(model: sightings)
+            }
+
             if let canonical = ClientIdentifier.canonicalMAC(searched) {
                 Section {
                     NavigationLink {
@@ -122,6 +129,9 @@ struct ClientLookupView: View {
         }
         .navigationTitle("Client Lookup")
         .dismissableKeyboard()
+        .task(id: ObjectIdentifier(session)) {
+            if sightings == nil { sightings = NetworkSightingModel(session: session) }
+        }
     }
 
     private func search() async {
@@ -130,6 +140,18 @@ struct ClientLookupView: View {
         searched = trimmed
         state = .loading
         activeLeases = []
+
+        // Runs alongside the DHCP fan-out rather than after it: the two
+        // answer different halves of the same question — what the estate
+        // *thinks* this client is, and where it physically is — and waiting
+        // for one to show the other would make the slower one the whole wait.
+        if let canonical = ClientIdentifier.canonicalMAC(trimmed) {
+            let model = sightings ?? NetworkSightingModel(session: session)
+            sightings = model
+            Task { await model.search(mac: canonical) }
+        } else {
+            sightings?.clear()
+        }
 
         state = await LoadState.fetching {
             // Which server holds the answer is not knowable in advance, so the
