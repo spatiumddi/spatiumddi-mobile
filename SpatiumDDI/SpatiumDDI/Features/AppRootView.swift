@@ -279,6 +279,8 @@ struct SignedInView: View {
             DomainsView(session: session)
         case .certificates:
             CertificatesView(session: session)
+        case .devices:
+            NetworkDevicesView(session: session)
         case .vlans:
             VLANRoutersView(session: session)
         case .vrfs:

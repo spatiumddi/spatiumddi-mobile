@@ -25,6 +25,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
     case dhcp
     case domains
     case certificates
+    case devices
     case vlans
     case vrfs
     case circuits
@@ -53,6 +54,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .dhcp: "DHCP"
         case .domains: "Domains"
         case .certificates: "Certificates"
+        case .devices: "Devices"
         case .vlans: "VLANs"
         case .vrfs: "VRFs"
         case .circuits: "Circuits"
@@ -81,6 +83,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .dhcp: "arrow.left.arrow.right"
         case .domains: "at"
         case .certificates: "lock.shield"
+        case .devices: "poweroutlet.type.b.squarefill"
         case .vlans: "point.3.connected.trianglepath.dotted"
         case .vrfs: "arrow.triangle.branch"
         case .circuits: "cable.connector"
@@ -112,6 +115,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
         case .changeRequests: "governance.approvals"
         case .newDevices: "security.new_device_watch"
         case .certificates: "security.tls_certs"
+        case .devices: "network.device"
         case .vlans: "network.vlan"
         case .vrfs: "network.vrf"
         case .circuits: "network.circuit"
@@ -137,7 +141,7 @@ nonisolated enum AppSection: String, CaseIterable, Identifiable, Hashable, Senda
             switch self {
             case .monitor: [.overview, .alerts, .clientLookup, .changeRequests, .newDevices]
             case .estate: [.ipam, .dns, .dhcp, .dhcpLog, .domains, .certificates]
-            case .network: [.vlans, .vrfs, .circuits, .asns]
+            case .network: [.devices, .vlans, .vrfs, .circuits, .asns]
             case .administration: [.ownership, .access, .audit, .trash]
             case .tools: [.networkTools, .search, .server, .about]
             }
