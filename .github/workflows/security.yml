@@ -63,8 +63,9 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: macos-latest
-    # CodeQL instruments the Swift compile, so it is roughly triple a plain build.
-    timeout-minutes: 60
+    # 60 minutes used to be enough and stopped being; 90 is headroom, not a
+    # target. What the job actually spends its time on is below.
+    timeout-minutes: 90
     permissions:
       contents: read
       security-events: write
@@ -78,6 +79,26 @@ jobs:
           languages: swift
           queries: security-extended
 
+      # This step does not currently finish inside the timeout, and the cause
+      # is structural rather than a slow runner.
+      #
+      # The API client is produced by the swift-openapi-generator *build-tool
+      # plugin*, so every build compiles the generator and its dependency tree
+      # — OpenAPIKit, swift-collections, argument-parser, Yams, numerics — as
+      # host tools before it reaches a line of app code, and CodeQL instruments
+      # all of it. Measured on a timed-out run: 1,316 Swift compile units, of
+      # which 24 were the app target and 14 were SpatiumAPI.
+      #
+      # `ONLY_ACTIVE_ARCH=YES` was tried here and **measured to do nothing** —
+      # the arm64/x86_64 split stayed exactly 50/50, because SwiftPM package
+      # targets do not honour it. It was removed rather than left in place
+      # looking like a fix.
+      #
+      # The real lever is not building the generator at all. CLAUDE.md already
+      # says to "pin one server version, generate against that exact document,
+      # and commit the generated code"; doing that would take the generator out
+      # of every build, not just this one. That is a deliberate change to how
+      # the client is produced, so it is not made here.
       - name: Build
         run: |
           xcodebuild -project SpatiumDDI/SpatiumDDI.xcodeproj -scheme SpatiumDDI \
